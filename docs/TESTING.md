@@ -63,6 +63,11 @@ Legend: ✅ verified · ⏳ pending (no machine of that OS available yet).
 | L9 | M8 | Fresh install from the packed tarball, `baton --version`, `baton doctor` | ✅ 2026-08-24 (`npm run smoke`) | ⏳ |
 | L10 | M8 | Whole flow from the tarball: run → forced limit → relay → HANDOFF.md → status | ✅ 2026-08-24 | ⏳ |
 | L11 | M8 | `baton continue` resumes the previous agent's own session | ✅ 2026-08-24 (claude resume) | ⏳ |
+| L12 | QA | `--auto` really edits files, per agent: claude · codex · gemini | ✅ 2026-08-24 (all three wrote the file; "1 file changed" from git) | ⏳ |
+| L13 | QA | `safe` mode does not write files | ✅ 2026-08-24 | ⏳ |
+| L14 | QA | A provider gate refuses, its remedy command is run, the retry succeeds | ✅ 2026-08-24 (gemini trust → `baton config set agents.gemini.extraArgs -- --skip-trust`) | ⏳ |
+| L15 | QA | Error paths return the right exit codes (2 usage · 3 exhausted · 130 cancel) | ✅ 2026-08-24 | ⏳ |
+| L16 | QA | Piping into `head` exits quietly instead of dumping an EPIPE stack | ✅ 2026-08-24 | ⏳ |
 
 Windows rows stay ⏳ until someone runs them on a real Windows machine **with logged-in
 provider CLIs** — that is the only thing CI cannot do. Everything else is covered:

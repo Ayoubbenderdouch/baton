@@ -160,7 +160,7 @@ Full reference: **[docs/CONFIG.md](docs/CONFIG.md)** (generated from the schema)
 ```bash
 baton config                              # what is actually in effect, and from where
 baton config set chain codex,claude
-baton config set agents.gemini.extraArgs --skip-trust
+baton config set agents.gemini.extraArgs -- --skip-trust   # -- ends flag parsing
 ```
 
 ## Trying the relay without burning quota

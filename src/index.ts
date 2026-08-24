@@ -1,9 +1,11 @@
 import { buildProgram } from "./cli/program.js";
+import { installPipeGuards } from "./cli/streams.js";
 import { writeLastError } from "./core/error-log.js";
 import { messages } from "./ui/messages.js";
 import { theme } from "./ui/theme.js";
 
 async function main(): Promise<void> {
+  installPipeGuards();
   await buildProgram().parseAsync(process.argv);
 }
 

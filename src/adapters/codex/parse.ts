@@ -32,9 +32,10 @@ interface CodexLine {
 function commandDetail(item: CodexItem): string | undefined {
   const command = item.command;
   if (typeof command !== "string" || command.trim() === "") return undefined;
-  // Codex wraps commands as `/bin/zsh -lc '…'` — show what the user would recognise.
-  const wrapped = /^\S*(?:sh|zsh|bash)\s+-l?c\s+'([\s\S]+)'$/.exec(command.trim());
-  return (wrapped?.[1] ?? command).trim();
+  // Codex wraps commands as `/bin/zsh -lc '…'` or `… -lc "…"` — show what the user
+  // would recognise, whichever quoting it picked.
+  const wrapped = /^\S*(?:sh|zsh|bash)\s+-l?c\s+(['"])([\s\S]+)\1$/.exec(command.trim());
+  return (wrapped?.[2] ?? command).trim();
 }
 
 export function parseCodexLine(line: string): AgentEvent[] {

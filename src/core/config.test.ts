@@ -136,3 +136,19 @@ describe("didYouMean", () => {
     expect(didYouMean("completely-different", ["chain", "roles"])).toBeUndefined();
   });
 });
+
+describe("values that look like flags", () => {
+  it("stores a provider flag as a clean single-element list", () => {
+    const raw: Record<string, unknown> = {};
+    // The CLI form is `baton config set agents.gemini.extraArgs -- --skip-trust`;
+    // `--` ends commander's option parsing, so the value arrives here verbatim.
+    expect(setByPath(raw, "agents.gemini.extraArgs", "--skip-trust").ok).toBe(true);
+    expect(raw).toEqual({ agents: { gemini: { extraArgs: ["--skip-trust"] } } });
+  });
+
+  it("trims stray whitespace instead of passing a broken flag to a provider", () => {
+    const raw: Record<string, unknown> = {};
+    setByPath(raw, "agents.codex.extraArgs", "  --skip-git-repo-check  ");
+    expect(raw).toEqual({ agents: { codex: { extraArgs: ["--skip-git-repo-check"] } } });
+  });
+})

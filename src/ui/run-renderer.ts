@@ -40,6 +40,8 @@ export class RunRenderer {
   private stallTimer: NodeJS.Timeout | undefined;
   private lastEventAt = Date.now();
   private currentAgent: AgentId | undefined;
+  /** Assistant text arrives in chunks that split mid-sentence — buffer to whole lines. */
+  private textBuffer = "";
 
   constructor(options: RendererOptions = {}) {
     this.plain = options.quiet === true || !isTTY();
@@ -87,22 +89,47 @@ export class RunRenderer {
     else this.spinner?.update(`${RUN} ${badge(this.currentAgent ?? "claude")} ${theme.dim(note)}`);
   }
 
+  /**
+   * Providers chunk their text differently: Claude sends whole messages, Gemini streams
+   * fragments that break mid-sentence. Buffering to line boundaries makes both read the
+   * same way, and the leftover is flushed by any other event or by the end of the turn.
+   */
+  private appendText(text: string): void {
+    this.textBuffer += text;
+    let newline = this.textBuffer.indexOf("\n");
+    while (newline !== -1) {
+      const line = this.textBuffer.slice(0, newline).trim();
+      this.textBuffer = this.textBuffer.slice(newline + 1);
+      if (line !== "") this.write(this.line(line));
+      newline = this.textBuffer.indexOf("\n");
+    }
+  }
+
+  private flushText(): void {
+    const rest = this.textBuffer.trim();
+    this.textBuffer = "";
+    if (rest !== "") this.write(this.line(rest));
+  }
+
   event(event: AgentEvent): void {
     this.lastEventAt = Date.now();
     switch (event.type) {
       case "text":
-        if (event.text.trim() !== "") this.write(this.line(event.text.trim()));
+        this.appendText(event.text);
         break;
       case "tool":
+        this.flushText();
         this.write(
           this.line(theme.dim(event.detail ? `${event.name}: ${clip(event.detail)}` : event.name)),
         );
         break;
       case "limit":
-      case "usage":
-      case "start":
       case "done":
       case "error":
+        this.flushText();
+        break;
+      case "usage":
+      case "start":
         break;
     }
     if (this.verbose) this.write(theme.dim(`  event ${JSON.stringify(event)}`));
@@ -119,6 +146,7 @@ export class RunRenderer {
 
   /** The signature moment — loud, two lines, exactly per UX-SPEC. */
   relay(info: RelayInfo): void {
+    this.flushText();
     const reset = info.resetHint ? ` (${info.resetHint})` : "";
     if (this.plain) {
       this.write(`baton: ${info.from} hit its usage limit${reset}`);
@@ -136,6 +164,7 @@ export class RunRenderer {
   }
 
   agentDone(agent: AgentId, durationMs: number, filesChanged: number): void {
+    this.flushText();
     const summary = messages.turnSummary(durationMs, filesChanged);
     this.stop();
     this.write(
@@ -155,6 +184,7 @@ export class RunRenderer {
 
   /** Errors are remedy-first and never more than three lines (baton-ui-style). */
   fail(what: string, remedy?: string, logPath?: string): void {
+    this.flushText();
     this.stop();
     this.write(this.plain ? `baton: ${what}` : `${theme.error("✗")} ${what}`);
     if (remedy) this.write(this.plain ? `baton: ${remedy}` : `  ${theme.accent(remedy)}`);
@@ -162,6 +192,7 @@ export class RunRenderer {
   }
 
   stop(): void {
+    this.flushText();
     if (this.stallTimer) clearInterval(this.stallTimer);
     this.stallTimer = undefined;
     this.spinner?.stop();

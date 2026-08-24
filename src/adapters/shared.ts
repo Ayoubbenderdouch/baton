@@ -168,14 +168,14 @@ const GATE_REMEDIES: { pattern: RegExp; remedy: string }[] = [
   {
     pattern: /not running in a trusted directory|trusted_folders|GEMINI_CLI_TRUST_WORKSPACE/i,
     remedy:
-      "gemini does not trust this folder -> run `gemini` here once and trust it, " +
-      'or add "--skip-trust" to agents.gemini.extraArgs',
+      "gemini does not trust this folder -> run `gemini` here once and trust it, or: " +
+      "baton config set agents.gemini.extraArgs -- --skip-trust",
   },
   {
     pattern: /not inside a trusted directory and --skip-git-repo-check/i,
     remedy:
-      "codex only runs inside a git repository -> run `git init` here, " +
-      'or add "--skip-git-repo-check" to agents.codex.extraArgs',
+      "codex only runs inside a git repository -> run `git init` here, or: " +
+      "baton config set agents.codex.extraArgs -- --skip-git-repo-check",
   },
 ];
 

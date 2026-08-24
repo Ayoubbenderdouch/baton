@@ -312,7 +312,9 @@ export function setByPath(
   return { ok: false, error: lastError };
 }
 
-function parseValue(head: string, isTopLevel: boolean, raw: string): unknown {
+function parseValue(head: string, isTopLevel: boolean, rawInput: string): unknown {
+  // A stray space would be passed straight to a provider CLI as part of the flag.
+  const raw = rawInput.trim();
   if (isTopLevel && (head === "chain" || head === "rules")) {
     if (head === "chain") return raw.split(",").map((part) => part.trim()).filter(Boolean);
     try {

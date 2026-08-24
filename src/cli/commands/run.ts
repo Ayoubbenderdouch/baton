@@ -124,7 +124,13 @@ export async function runCommand(
   }
 
   if (startAgent === undefined) {
-    renderer.fail(decision.reason, "baton doctor");
+    // Point at the thing that actually fixes this failure, not at doctor for everything.
+    const remedy = decision.reason.startsWith("unknown role")
+      ? "baton config get roles"
+      : decision.reason.startsWith("unknown agent")
+        ? "baton agents"
+        : "baton doctor";
+    renderer.fail(decision.reason, remedy);
     process.exitCode = decision.reason.startsWith("unknown") ? EXIT.usage : EXIT.exhausted;
     return;
   }

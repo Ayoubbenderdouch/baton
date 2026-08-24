@@ -35,7 +35,7 @@ export function renderConfigReference(): string {
     "baton config get roles.architect",
     "baton config set chain codex,claude",
     "baton config set roles.analyze codex --global",
-    'baton config set agents.gemini.extraArgs --skip-trust',
+    "baton config set agents.gemini.extraArgs -- --skip-trust   # -- ends flag parsing",
     "```",
     "",
     "| Key | Default | What it does |",

@@ -32,6 +32,21 @@ describe("codex exec --json parsing (real 0.147.0 captures)", () => {
     expect(tool).toEqual({ type: "tool", name: "shell", detail: "echo hi" });
   });
 
+  it("unwraps double-quoted commands too (seen in a live run)", () => {
+    const line = JSON.stringify({
+      type: "item.started",
+      item: {
+        id: "item_3",
+        type: "command_execution",
+        command: '/bin/zsh -lc "perl -pi -e \'chomp if eof\' hello.txt"',
+        status: "in_progress",
+      },
+    });
+    expect(parseCodexLine(line)).toEqual([
+      { type: "tool", name: "shell", detail: "perl -pi -e 'chomp if eof' hello.txt" },
+    ]);
+  });
+
   it("reports turn.failed as an unjudged error for the classifier", () => {
     const parsed = events("turn-failed.jsonl");
     const error = firstEvent(parsed, "error");
