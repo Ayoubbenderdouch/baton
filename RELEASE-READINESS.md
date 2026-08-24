@@ -1,7 +1,7 @@
 # Baton v0.1.0 — release readiness
 
 A verification pass, not a summary: every line below was produced by running something.
-Date: 2026-08-24 · macOS (darwin 25.3.0) · Node v26.7.0 · commit `1eb2655`.
+Date: 2026-08-24 · macOS (darwin 25.3.0) · Node v26.7.0 · commit `b277618`.
 
 Nothing here is marked done on the strength of an earlier claim. Where a check needed a
 fix first, the fix is linked to its commit and the check was re-run.
@@ -26,7 +26,7 @@ suites pass in CI on ubuntu, macOS **and** Windows × Node 22/24.
 | M8 Polish & release | ✅ | `npm run smoke` · `npm publish --dry-run` · docs/CONFIG.md generated from the zod schema and guarded by a test · docs/README.ar.md · `last-error.log` tested |
 | M8 Ink interactive shell | ⏭️ | Deliberately skipped — docs/MILESTONES.md marks it optional and says not to delay the release for it |
 
-**Suites:** `npm test` → **232 tests, 26 files, all passing**. `npm run test:ci` (CI colour
+**Suites:** `npm test` → **234 tests, 26 files, all passing**. `npm run test:ci` (CI colour
 settings) → same. Coverage gate from docs/TESTING.md, measured per glob:
 `src/core/**` **94.44 %** lines · `src/adapters/**` **92.22 %** · adapter parsers **93.66 %**
 (gate: 85 %).
@@ -39,6 +39,11 @@ Two things this pass fixed rather than waved through:
   (`test: cover the fake adapter and the adapter wiring`), now 92.22 %.
 - `baton doctor --probe` reported "unclear" when a provider's own gate blocked the probe.
   Fixed to name the gate and its remedy (`fix(doctor): name the real reason…`).
+- The tests written for that fix needed a shell shim that answers `--version` but fails
+  the probe, and the Windows `.cmd` form of it was wrong — green here, red on both
+  windows-latest jobs. The logic is pure, so it is now a pure function tested directly
+  against the captured refusals (`fix(test): test the probe classification purely…`).
+  Worth stating plainly: CI caught this, a local run could not have.
 
 ## 2. Security audit — prime rule
 
@@ -149,7 +154,7 @@ unregistered (404).
 
 Already done, listed so nobody repeats them: the GitHub repo exists
 (<https://github.com/Ayoubbenderdouch/baton>, public), `main` and the `v0.1.0` tag are
-pushed, and the 3-OS CI matrix is **green** — latest run: https://github.com/Ayoubbenderdouch/baton/actions/runs/32783643120
+pushed, and the 3-OS CI matrix is **green** — latest run: https://github.com/Ayoubbenderdouch/baton/actions/runs/32784068318
 
 **1 — Live smoke, macOS** (all verified once already; repeat after any change):
 
