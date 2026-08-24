@@ -338,6 +338,12 @@ export function runProvider(config: ProviderRunConfig, request: RunRequest): Run
         // Providers that stream text separately from the final envelope leave
         // resultText empty — fill it with what the agent actually last said.
         const resultText = event.resultText !== "" ? event.resultText : lastText;
+        // A failed envelope with no error line of its own: the provider's own words are
+        // the only explanation the user will get, so classify and surface them.
+        if (!event.ok && !sawError && !sawLimit) {
+          sawError = true;
+          pushFailure(resultText !== "" ? resultText : stderrTail);
+        }
         // The provider's own envelope decides success: gemini can emit a transient
         // error line and still finish with status "success".
         queue.push({

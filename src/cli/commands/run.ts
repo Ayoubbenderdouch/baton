@@ -15,6 +15,7 @@ import {
 import { messages } from "../../ui/messages.js";
 import { RunRenderer } from "../../ui/run-renderer.js";
 import { EXIT } from "../exit-codes.js";
+import { finishRun } from "./run-result.js";
 
 export const DEFAULT_CHAIN: AgentId[] = ["claude", "codex", "gemini"];
 export const DEFAULT_MAX_RELAYS = 2;
@@ -170,37 +171,7 @@ export async function runCommand(
       signal: controller.signal,
     }, taskConfig);
 
-    const last = result.outcomes.at(-1);
-    switch (result.status) {
-      case "done":
-        renderer.agentDone(
-          last?.agent ?? startAgent,
-          last?.durationMs ?? 0,
-          last?.filesChanged.length ?? 0,
-        );
-        process.exitCode = EXIT.ok;
-        break;
-      case "cancel":
-        renderer.stop();
-        renderer.warn(messages.cancelled);
-        process.exitCode = EXIT.cancelled;
-        break;
-      case "exhausted":
-        renderer.fail(messages.allAgentsExhausted, "baton status");
-        for (const blocked of result.blocked) {
-          renderer.note(messages.blockedAgent(blocked.agent, blocked.reason, blocked.until));
-        }
-        process.exitCode = EXIT.exhausted;
-        break;
-      case "error":
-        renderer.fail(
-          messages.agentFailed(last?.agent ?? startAgent, last?.error?.kind ?? "unknown"),
-          last?.error?.kind === "auth" ? `${last?.agent}` : undefined,
-        );
-        if (last?.error?.raw) renderer.note(last.error.raw.split("\n")[0] ?? "");
-        process.exitCode = EXIT.error;
-        break;
-    }
+    finishRun(renderer, result, startAgent);
   } finally {
     process.removeListener("SIGINT", onSigint);
     renderer.stop();

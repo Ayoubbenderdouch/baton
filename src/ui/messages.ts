@@ -10,9 +10,6 @@ export const messages = {
     "Anthropic, OpenAI, or Google. It orchestrates the official CLIs you installed and " +
     "authenticated yourself.",
 
-  notImplemented: (command: string): string =>
-    `baton ${command}: not implemented yet (scaffold build).`,
-
   doctorTitle: "BATON DOCTOR",
   agentsTitle: "BATON AGENTS",
   detecting: "detecting agent CLIs",
@@ -94,6 +91,16 @@ export const messages = {
 
   handoffWritten: (file: string): string => `handoff written: ${file} (mirrored to .baton/)`,
 
+  nothingToContinue: "no task recorded in .baton/session.json — nothing to continue",
+
+  continuePrompt:
+    "Continue the task from where it stopped. Do not restart completed work; report what you did.",
+
+  continueResume: (agent: string): string => `continuing with ${agent} (its own session)`,
+
+  continueRelay: (agent: string, handoffPath: string): string =>
+    `continuing with ${agent} via the handoff (${handoffPath})`,
+
   statusTitle: "BATON STATUS",
   statusNoData: "no data yet — run something with baton run",
   statusTokensNote: "tokens = runs launched via baton only; Baton never asks a provider about your quota",
@@ -118,5 +125,5 @@ export const messages = {
     "  nothing has run yet — the briefing has the task and the project's verify commands only",
 
   unexpectedError: (logPath: string): string =>
-    `baton hit an unexpected error -> details written to ${logPath}`,
+    `full detail: ${logPath}  (re-run with --verbose to see it here)`,
 } as const;

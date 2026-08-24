@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { createRequire } from "node:module";
 import { agentsCommand, doctorCommand } from "./commands/doctor.js";
 import { configCommand } from "./commands/config.js";
+import { continueCommand, type ContinueCommandOptions } from "./commands/continue.js";
 import { handoffCommand } from "./commands/handoff.js";
 import { initCommand } from "./commands/init.js";
 import { runCommand, type RunCommandOptions } from "./commands/run.js";
@@ -29,10 +30,6 @@ function readVersion(): string {
 
 export const VERSION = readVersion();
 
-function todo(command: string): void {
-  process.stdout.write(`${messages.notImplemented(command)}\n`);
-}
-
 export function buildProgram(): Command {
   const program = new Command();
 
@@ -41,7 +38,21 @@ export function buildProgram(): Command {
     .description(`Baton — ${messages.tagline}`)
     .version(VERSION, "-v, --version", "print the baton version")
     .showHelpAfterError("(run `baton --help` for usage)")
-    .addHelpText("after", `\n${theme.dim(messages.disclaimer)}\n`);
+    .addHelpText(
+      "after",
+      [
+        "",
+        "Examples:",
+        '  baton run "fix the flaky auth test"      pick an agent and go',
+        '  baton run --agent codex --auto "…"       force codex, let it edit files',
+        "  baton continue                           pick the task back up tomorrow",
+        "  baton status                             usage and cooldowns everywhere",
+        "  baton doctor                             what is installed and signed in",
+        "",
+        theme.dim(messages.disclaimer),
+        "",
+      ].join("\n"),
+    );
 
   program
     .command("run", { isDefault: true })
@@ -65,7 +76,14 @@ export function buildProgram(): Command {
   program
     .command("continue")
     .description("continue the last task (native resume, or relay to the next agent)")
-    .action(() => todo("continue"));
+    .option("-a, --agent <id>", "force a specific agent")
+    .option("--auto", "let the agent edit files")
+    .option("--unsafe", "allow the provider's bypass mode — dangerous, opt-in only")
+    .option("--quiet", "plain output, no spinner")
+    .option("--verbose", "echo raw provider events")
+    .action(async (options: ContinueCommandOptions) => {
+      await continueCommand(options);
+    });
 
   program
     .command("status")

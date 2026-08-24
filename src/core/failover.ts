@@ -83,11 +83,21 @@ export async function pickNextAgent(
  * The relay (docs/FAILOVER.md §3): run the task, and when a provider hits its usage
  * limit, write the briefing and hand the same task to the next provider.
  */
+export interface TaskStart {
+  /** Prompt for the FIRST turn — defaults to the task itself. */
+  prompt?: string;
+  /** Provider-native session to resume for the first turn (`baton continue`). */
+  sessionRef?: string;
+  /** Treat the first turn as a relay (prepends the handoff preamble). */
+  relay?: boolean;
+}
+
 export async function runTask(
   task: string,
   startAgent: AgentId,
   deps: TaskDeps,
   config: TaskConfig,
+  start: TaskStart = {},
 ): Promise<TaskResult> {
   const outcomes: TurnOutcome[] = [];
   // Own the task lifecycle here: the handoff written mid-relay must carry the task even
@@ -95,7 +105,8 @@ export async function runTask(
   deps.store.startTask(task, deps.now().toISOString());
   let current = startAgent;
   let relays = 0;
-  let isRelay = false;
+  let isRelay = start.relay === true;
+  let firstTurn = true;
   let blocked: TaskResult["blocked"] = [];
 
   const availability = async (
@@ -118,7 +129,10 @@ export async function runTask(
 
   for (;;) {
     const adapter = deps.getAdapter(current);
-    const prompt = isRelay ? `${RELAY_PREAMBLE}\n\n${task}` : task;
+    const basePrompt = firstTurn && start.prompt !== undefined ? start.prompt : task;
+    const prompt = isRelay ? `${RELAY_PREAMBLE}\n\n${basePrompt}` : basePrompt;
+    const sessionRef = firstTurn ? start.sessionRef : undefined;
+    firstTurn = false;
 
     const outcome = await runTurn({
       adapter,
@@ -126,6 +140,7 @@ export async function runTask(
       cwd: deps.cwd,
       permissionLevel: config.permissionLevel,
       renderer: deps.renderer,
+      ...(sessionRef !== undefined ? { sessionRef } : {}),
       ...(deps.signal !== undefined ? { signal: deps.signal } : {}),
       ...(config.unsafe !== undefined ? { unsafe: config.unsafe } : {}),
       ...(config.verbose !== undefined ? { verbose: config.verbose } : {}),

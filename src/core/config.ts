@@ -20,19 +20,45 @@ const ruleSchema = z
 
 export const configSchema = z
   .object({
-    chain: z.array(agentIdSchema).min(1),
-    roles: z.record(z.string(), agentIdSchema),
-    rules: z.array(ruleSchema),
-    maxRelays: z.number().int().min(0),
-    cooldownMinutes: z.number().int().min(0),
-    permissionLevel: z.enum(["safe", "auto"]),
-    relayOnError: z.boolean(),
-    runTimeoutMs: z.number().int().positive(),
-    stallMs: z.number().int().positive(),
-    agents: z.partialRecord(
-      agentIdSchema,
-      z.object({ extraArgs: z.array(z.string()) }).strict(),
-    ),
+    chain: z
+      .array(agentIdSchema)
+      .min(1)
+      .describe("Failover order. The relay walks this list to find the next agent."),
+    roles: z
+      .record(z.string(), agentIdSchema)
+      .describe("Role name -> agent, used by `baton run --role architect`."),
+    rules: z
+      .array(ruleSchema)
+      .describe("Routing rules, evaluated top down; the first match wins."),
+    maxRelays: z
+      .number()
+      .int()
+      .min(0)
+      .describe("How many times one task may be passed on before Baton stops."),
+    cooldownMinutes: z
+      .number()
+      .int()
+      .min(0)
+      .describe(
+        "How long an agent is skipped after a usage limit (a later provider reset time wins).",
+      ),
+    permissionLevel: z
+      .enum(["safe", "auto"])
+      .describe("safe = read-only tools; auto = the agent may edit files."),
+    relayOnError: z
+      .boolean()
+      .describe("Also relay on non-limit failures. Off by default, so a broken workspace does not burn a second quota."),
+    runTimeoutMs: z.number().int().positive().describe("Hard limit for a single agent turn."),
+    stallMs: z
+      .number()
+      .int()
+      .positive()
+      .describe("Silence after which the UI says 'still working' instead of looking frozen."),
+    agents: z
+      .partialRecord(agentIdSchema, z.object({ extraArgs: z.array(z.string()) }).strict())
+      .describe(
+        "Passthrough args per agent, e.g. {\"gemini\":{\"extraArgs\":[\"--skip-trust\"]}}.",
+      ),
   })
   .strict();
 
