@@ -131,7 +131,10 @@ interface Turn {
 
 ## Tech stack (fixed — do not substitute)
 
-- **Node.js ≥ 20**, **TypeScript strict**, ESM (`"type": "module"`).
+- **Node.js ≥ 22**, **TypeScript strict**, ESM (`"type": "module"`).
+  (The doc said ≥20; reality wins per rule 7 — execa 10 declares `engines: node >=22` and
+  crashes on Node 20 with `TEXT_ENCODINGS.union is not a function`. Node 20 reached
+  end-of-life in April 2026, so requiring 22 costs no supported user anything.)
 - **execa** for child processes (see CROSS-PLATFORM.md for the Windows rules).
 - **commander** for the CLI surface.
 - **picocolors** + **ora** for rendering v1 (Ink-based interactive shell is milestone M8,

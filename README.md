@@ -46,7 +46,7 @@ No restart. No re-explaining. No copy-pasting your task into a second tool.
 ## Install
 
 ```bash
-npm i -g baton-ai
+npm i -g baton-ai      # needs Node 22 or newer
 baton doctor
 ```
 

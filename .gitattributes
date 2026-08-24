@@ -1,0 +1,7 @@
+# Keep every checkout identical, so generated docs and snapshots compare equal on
+# Windows too (docs/TESTING.md: snapshots must be stable across OSes).
+* text=auto eol=lf
+
+# The fixtures are captured provider bytes — git must never rewrite them.
+fixtures/** -text
+*.jsonl -text

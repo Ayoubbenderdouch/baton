@@ -52,7 +52,7 @@ merge that breaks it. Linux comes free with the same rules.
 ## CI matrix (non-negotiable)
 
 `.github/workflows/ci.yml`: `os: [ubuntu-latest, macos-latest, windows-latest]`,
-Node 20 + 22. Steps: install → lint → typecheck → unit tests → pack smoke
+Node 22 + 24 (Node 20 is EOL and execa 10 does not run on it). Steps: install → lint → typecheck → unit tests → pack smoke
 (`npm pack` + install the tarball in a temp dir + `baton --version` + `baton doctor`
 with fake shims). All three OSes required for merge.
 

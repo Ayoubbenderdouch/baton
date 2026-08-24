@@ -42,6 +42,11 @@ passes the baton — with the full context — when one hits its usage limit.
   without spawning the provider at all, and `BATON_TEST_FAKE=1` replaces every adapter
   with a fake so a whole task can run with no CLI, no account and no network.
 
+### Requirements
+
+- **Node.js 22 or newer.** Node 20 reached end-of-life in April 2026 and `execa` — the
+  library Baton spawns every provider CLI with — refuses to run on it.
+
 ### Safety
 
 - Baton never reads, stores, transmits or manages any provider credential, and never

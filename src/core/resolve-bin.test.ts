@@ -60,7 +60,10 @@ describe("resolveBin on Windows semantics", () => {
   });
 });
 
-describe("resolveBin on POSIX semantics", () => {
+// Windows has no execute bit: `fs.access(file, X_OK)` there answers by file extension,
+// so POSIX file-mode semantics cannot be simulated on a Windows runner. The Windows
+// behaviour itself is covered by the block above, which runs on every OS.
+describe.skipIf(process.platform === "win32")("resolveBin on POSIX semantics", () => {
   const posix = {
     platform: "darwin" as NodeJS.Platform,
     path: `${posixDir}:/does/not/exist`,

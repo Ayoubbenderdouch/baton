@@ -18,9 +18,12 @@ describe("docs/CONFIG.md", () => {
     } catch {
       current = "(docs/CONFIG.md is missing)";
     }
+    // Compare line-ending neutral: a Windows checkout may hand us CRLF whatever
+    // .gitattributes says (docs/TESTING.md - normalize before comparing).
+    const normalize = (text: string): string => text.replace(/\r\n/g, "\n");
     expect(
-      current,
+      normalize(current),
       "docs/CONFIG.md is out of date — run `BATON_UPDATE_DOCS=1 npm test`",
-    ).toBe(generated);
+    ).toBe(normalize(generated));
   });
 });
