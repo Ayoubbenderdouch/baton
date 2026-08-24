@@ -156,6 +156,40 @@ export function classifyFailure(output: string): "auth" | "crash" {
   return looksLikeAuthProblem(output) ? "auth" : "crash";
 }
 
+/**
+ * Two gates the providers enforce themselves, with wording captured in
+ * fixtures/gemini/trust-error.txt and fixtures/codex/git-repo-required.txt.
+ *
+ * Baton never relaxes another tool's safety gate by default — it explains the gate and
+ * points at the passthrough config, so opening it stays the user's decision.
+ */
+const GATE_REMEDIES: { pattern: RegExp; remedy: string }[] = [
+  {
+    pattern: /not running in a trusted directory|trusted_folders|GEMINI_CLI_TRUST_WORKSPACE/i,
+    remedy:
+      "gemini does not trust this folder -> run `gemini` here once and trust it, " +
+      'or add "--skip-trust" to agents.gemini.extraArgs',
+  },
+  {
+    pattern: /not inside a trusted directory and --skip-git-repo-check/i,
+    remedy:
+      "codex only runs inside a git repository -> run `git init` here, " +
+      'or add "--skip-git-repo-check" to agents.codex.extraArgs',
+  },
+];
+
+export function gateRemedy(output: string): string | undefined {
+  return GATE_REMEDIES.find((entry) => entry.pattern.test(output))?.remedy;
+}
+
+/** Turn a provider failure into a kind plus a first line the user can act on. */
+export function explainFailure(output: string): { kind: "auth" | "crash"; raw: string } {
+  const remedy = gateRemedy(output);
+  const firstLine = output.trim().split(/\r?\n/)[0] ?? output.trim();
+  if (remedy !== undefined) return { kind: "crash", raw: `${remedy}\n${firstLine}` };
+  return { kind: classifyFailure(output), raw: output.trim() };
+}
+
 /** Windows caps a command line at ~32k chars — long prompts go through stdin instead. */
 export const MAX_PROMPT_ARG_CHARS = 8000;
 
@@ -204,19 +238,42 @@ export function runProvider(config: ProviderRunConfig, request: RunRequest): Run
   let cancelled = false;
   let sawDone = false;
   let sawLimit = false;
+  let sawError = false;
   let sessionRef: string | undefined;
   let lastText = "";
   let stderrTail = "";
 
   const forward = (events: AgentEvent[]): void => {
     for (const event of events) {
+      if (event.type === "start" && event.sessionRef !== undefined) sessionRef = event.sessionRef;
+      if (event.type === "text") lastText = event.text;
+      if (event.type === "limit") sawLimit = true;
+
+      if (event.type === "error" && event.kind === "unknown") {
+        // Parsers report a provider-signalled failure without judging it; the judging
+        // happens here, in one place, so every adapter behaves identically.
+        sawError = true;
+        const explained = explainFailure(`${event.raw}\n${stderrTail}`);
+        queue.push({ type: "error", kind: explained.kind, raw: explained.raw });
+        continue;
+      }
+      if (event.type === "error") sawError = true;
+
       if (event.type === "done") {
         sawDone = true;
         if (event.sessionRef !== undefined) sessionRef = event.sessionRef;
+        // Providers that stream text separately from the final envelope leave
+        // resultText empty — fill it with what the agent actually last said.
+        const resultText = event.resultText !== "" ? event.resultText : lastText;
+        queue.push({
+          ...event,
+          resultText,
+          ok: event.ok && !sawError,
+          ...(event.sessionRef === undefined && sessionRef !== undefined ? { sessionRef } : {}),
+        });
+        continue;
       }
-      if (event.type === "start" && event.sessionRef !== undefined) sessionRef = event.sessionRef;
-      if (event.type === "limit") sawLimit = true;
-      if (event.type === "text") lastText = event.text;
+
       queue.push(event);
     }
   };
@@ -259,8 +316,9 @@ export function runProvider(config: ProviderRunConfig, request: RunRequest): Run
     }
     if (result.timedOut) {
       queue.push({ type: "error", kind: "crash", raw: "the agent CLI hit Baton's run timeout" });
-    } else {
-      queue.push({ type: "error", kind: classifyFailure(combined), raw: stderrTail.trim() || combined.trim() });
+    } else if (!sawError) {
+      const explained = explainFailure(stderrTail.trim() !== "" ? stderrTail : combined);
+      queue.push({ type: "error", kind: explained.kind, raw: explained.raw });
     }
     queue.push({ type: "done", ok: false, resultText: lastText, ...(sessionRef ? { sessionRef } : {}) });
     queue.close();

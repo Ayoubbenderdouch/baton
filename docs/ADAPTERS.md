@@ -92,15 +92,28 @@ codex exec --json "<prompt>"
   file; `--output-schema <schema.json>` enforces structured final output.
 - Sandbox/permissions mapping:
   - `safe` → `--sandbox read-only`
-  - `auto` → `--sandbox workspace-write` (or `--full-auto`)
+  - `auto` → `--sandbox workspace-write` (**`--full-auto` is not a flag of `codex exec`
+    in 0.147.0** — the sandbox selector is the only knob)
   - Never use `--dangerously-bypass-approvals-and-sandbox` / `--yolo` except behind
     Baton's explicit `--unsafe`.
+- **Gate:** outside a git repository codex refuses with *"Not inside a trusted directory
+  and --skip-git-repo-check was not specified"* (fixture:
+  `fixtures/codex/git-repo-required.txt`). Baton does not pass that flag for the user —
+  it prints the remedy and points at `agents.codex.extraArgs`.
 - **Resume:** `codex exec resume --last "<follow-up>"` continues the most recent
   non-interactive session (or `codex exec resume <thread_id> …`). Capture the thread id
   from the event stream when present.
 
-**Parsing:** JSONL per line. `item.*` with agent message content → `text`;
-`turn.completed.usage` → `usage`; `turn.failed` → LimitDetector classification.
+**Parsing (verified 0.147.0):** JSONL per line. Real line types seen:
+`thread.started` (**carries `thread_id` — the resume handle**), `turn.started`,
+`item.started` / `item.completed` with `item.type` in `agent_message` /
+`command_execution` (`command`, `aggregated_output`, `exit_code`) / `error`,
+`turn.completed` (`usage.input_tokens` / `output_tokens` / `cached_input_tokens`),
+`turn.failed` (`error.message` holds the provider's raw JSON error, e.g. a 429), plus a
+top-level `error` line that duplicates it. An `item.type: "error"` is often a *recovered*
+warning — only `turn.failed` ends a turn. Commands arrive wrapped as
+`/bin/zsh -lc '…'`; unwrap for display. Resume is
+`codex exec resume [SESSION_ID] [PROMPT]` (id first, then the prompt).
 Remember stderr carries progress text in non-`--json` mode — with `--json`, treat
 stderr as log noise but still scan it in the LimitDetector.
 
@@ -124,9 +137,14 @@ gemini -p "<prompt>" --output-format stream-json --approval-mode <mode>
     per-model token counts (prompt/response/cached/total) and `stats.tools` has tool
     call counts. Great for usage tracking.
   - `stream-json`: JSONL events for live rendering.
-- Approval mapping:
-  - `safe` → default approval mode (read-oriented prompt design; Gemini may still plan)
-  - `auto` → `--approval-mode yolo` (or `-y` / `--yolo`) — auto-approves tool calls.
+- Approval mapping (adjusted — see the note below):
+  - `safe` → `--approval-mode plan` (0.56.0's own read-only mode; a stronger guarantee
+    than "default", which in a headless run just leaves tool calls unapprovable)
+  - `auto` → `--approval-mode auto_edit` (auto-approves edit tools = the analogue of
+    Claude's `acceptEdits`). **Not `yolo`:** yolo auto-approves *every* tool call, which
+    is precisely the yolo-class mode the project reserves for Baton's explicit
+    `--unsafe`. Constraint 5 of the master prompt outranks this file's original mapping.
+  - `--unsafe` → `--approval-mode yolo`.
   - Known quirk: even in yolo, Gemini sometimes ends a turn asking "does this plan sound
     good?" instead of acting. Counter it in the prompt preamble: *"Non-interactive run.
     Never ask for confirmation; proceed and report."* Add a fixture for this case.
@@ -134,11 +152,22 @@ gemini -p "<prompt>" --output-format stream-json --approval-mode <mode>
   treat Gemini as **stateless** in v1 and always rely on the HANDOFF preamble for
   continuity. Revisit after verifying the installed version.
 
-**Parsing:** in `json` mode, `response` → final `text` + `done`; `stats.models.*.tokens`
-→ `usage`; `error` object → LimitDetector. In `stream-json`, map message deltas to
-`text` events.
+**Parsing (verified 0.56.0):** in `json` mode the envelope is
+`{ session_id, response, stats }`, and per-model tokens are
+`stats.models.<model>.tokens.{input, prompt, candidates, total, cached, thoughts, tool}` —
+**`prompt` is the input count and `candidates` the output count** (the doc's earlier
+`prompt`/`response` naming was wrong). In `stream-json` the line types are `init`
+(`session_id`, `model`), `message` (`role`, `content`, `delta` — the user's own message
+is echoed back and must be skipped), `tool_use` (`tool_name`, `parameters`),
+`tool_result`, and `result` (`status`, `stats.input_tokens` / `output_tokens` /
+`total_tokens`). Baton runs stream-json: it carries both the live text and the usage.
 
-**Usage source:** `stats` block of the json output.
+**Gate:** in a folder Gemini does not trust, a headless run exits **55** with
+*"Gemini CLI is not running in a trusted directory"* (fixture:
+`fixtures/gemini/trust-error.txt`). Baton prints that remedy rather than passing
+`--skip-trust` on the user's behalf.
+
+**Usage source:** the `result` line in stream-json, `stats` in json mode.
 
 ---
 

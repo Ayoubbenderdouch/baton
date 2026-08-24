@@ -7,6 +7,10 @@ All notable changes to Baton are documented here. The format follows
 
 ### Added
 
+- M3 adapters: Codex (`codex exec --json`, thread resume, sandbox mapping) and Gemini
+  (`-o stream-json`, `plan`/`auto_edit` approval mapping, non-interactive preamble), both
+  fixture-driven. Provider safety gates (Gemini's untrusted folder, Codex's git-repo
+  requirement) are explained with the exact remedy instead of being silently bypassed.
 - M2 run pipeline: the `AgentEvent` model, a Claude Code adapter (stream-json parsing
   proven by real 2.1.241 captures in `fixtures/claude/`), the live run renderer, the
   `.baton/session.json` store, and `baton run "task" --agent claude` end to end.

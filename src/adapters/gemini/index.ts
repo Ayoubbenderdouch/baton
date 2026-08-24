@@ -5,7 +5,9 @@ import type {
   RunHandle,
   RunRequest,
 } from "../../core/types.js";
-import { detectProvider, unimplementedRun } from "../shared.js";
+import { detectProvider, runProvider } from "../shared.js";
+import { buildGeminiInvocation } from "./args.js";
+import { parseGeminiLine } from "./parse.js";
 import { geminiSpec } from "./spec.js";
 
 export class GeminiAdapter implements AgentAdapter {
@@ -16,7 +18,21 @@ export class GeminiAdapter implements AgentAdapter {
     return detectProvider(geminiSpec, options);
   }
 
-  run(_request: RunRequest): RunHandle {
-    return unimplementedRun(this.id);
+  /**
+   * Gemini is treated as stateless in v1: its `--resume` takes "latest" or an index,
+   * not a session id, which is not a safe handle across projects. Continuity comes
+   * from HANDOFF.md instead (docs/ADAPTERS.md).
+   */
+  run(request: RunRequest): RunHandle {
+    return runProvider(
+      {
+        id: this.id,
+        binName: geminiSpec.binName,
+        installCommand: geminiSpec.installCommand,
+        invocation: buildGeminiInvocation(request),
+        parseLine: parseGeminiLine,
+      },
+      request,
+    );
   }
 }

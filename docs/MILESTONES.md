@@ -46,10 +46,13 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
   macOS (TESTING.md L4) and Ctrl+C leaves zero orphans (L5); ⏳ (pending: Windows)
 
 ## M3 — Codex & Gemini adapters
-- [ ] CodexAdapter (`codex exec --json`) with usage extraction from `turn.completed`
-- [ ] GeminiAdapter (json + stream-json), yolo mapping, "never ask" preamble
-- [ ] Fixtures: ok/limit/auth/crash per provider
-- DoD: `baton run --agent codex|gemini` live-verified on both OSes
+- [x] CodexAdapter (`codex exec --json`) with usage extraction from `turn.completed`
+- [x] GeminiAdapter (stream-json), approval mapping (`plan`/`auto_edit`, yolo only under
+      `--unsafe`), "never ask" preamble
+- [x] Fixtures: ok/limit/auth/crash per provider (+ the two real safety-gate refusals);
+      provenance table in `fixtures/README.md` — limit/auth are synthesized, and say so
+- DoD: `baton run --agent codex|gemini` live-verified on macOS (TESTING.md L6, L7);
+  ⏳ (pending: Windows)
 
 ## M4 — Handoff
 - [ ] HandoffWriter per FAILOVER.md template; deterministic; snapshot tests
