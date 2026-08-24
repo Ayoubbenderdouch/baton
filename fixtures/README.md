@@ -37,7 +37,14 @@ Captured on 2026-08-24, macOS: claude 2.1.241 · codex-cli 0.147.0 · gemini 0.5
 | `gemini/limit.jsonl` | **synthesized** | `429 RESOURCE_EXHAUSTED` in the stream + error result |
 | `gemini/auth.txt` | **synthesized** | Google sign-in wording |
 | `unicode-task.txt` | written | Arabic + emoji task text pushed through the whole pipeline |
+| `local-history/claude/**` | **synthesized** | `--deep` reading of Claude's local JSONL transcripts, including junk lines it must skip |
+| `local-history/codex/**` | **synthesized** | `--deep` reading of Codex session logs |
 | `fake-cli/emit.mjs` | tool | replays any fixture as a fake provider CLI (CRLF, exit codes, stderr, hang) |
+
+The `local-history` fixtures are synthesized deliberately: the real directories live in
+the user's home, and reading a personal transcript to commit it as a fixture is not
+something this project does. `--deep` points at those directories at runtime only, and
+`BATON_CLAUDE_HOME` / `BATON_CODEX_HOME` redirect it to a fixture tree for tests.
 
 ## Refreshing a synthesized fixture with the real thing
 

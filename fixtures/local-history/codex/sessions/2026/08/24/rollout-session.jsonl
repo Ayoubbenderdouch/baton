@@ -1,0 +1,4 @@
+{"type":"turn.started","ts":"2026-08-24T10:00:00.000Z"}
+{"type":"turn.completed","ts":"2026-08-24T10:00:30.000Z","usage":{"input_tokens":5000,"output_tokens":250,"cached_input_tokens":4000}}
+{"type":"turn.completed","ts":"2026-08-24T10:05:00.000Z","usage":{"input_tokens":2500,"output_tokens":100}}
+{"broken json

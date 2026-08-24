@@ -1,3 +1,5 @@
+import type { StatusReport } from "../core/status.js";
+import { formatTokens } from "../core/status.js";
 import type { DetectResult } from "../core/types.js";
 import { messages } from "./messages.js";
 import { formatTable } from "./table.js";
@@ -82,4 +84,47 @@ export function renderAgents(results: DetectResult[]): string {
     ]),
   );
   return `${theme.violet(theme.bold(messages.agentsTitle))}\n\n${table}\n`;
+}
+
+
+const DOT_COOLING = "◌"; // ◌
+
+/** `baton status` — one dashboard across every subscription (docs/USAGE-TRACKING.md). */
+export function renderStatus(report: StatusReport, options: { deep: boolean }): string {
+  const rows = report.agents.map((agent) => {
+    const state = agent.cooling
+      ? `${theme.warn(DOT_COOLING)} ${theme.warn("cooling")}`
+      : `${theme.success(DOT_READY)} ${theme.success("ready")}`;
+
+    const today = agent.noData
+      ? theme.dim(messages.statusNoData)
+      : `${agent.runsToday} ${agent.runsToday === 1 ? "run" : "runs"} · ${formatTokens(
+          agent.inputTokensToday,
+        )} in/${formatTokens(agent.outputTokensToday)} out`;
+
+    const lastLimit =
+      agent.lastLimitTs === undefined
+        ? theme.dim("—")
+        : `${agent.lastLimitTs.slice(11, 16)}${
+            agent.lastLimitResetHint ? ` (${agent.lastLimitResetHint})` : ""
+          }`;
+
+    const note = agent.deep
+      ? theme.dim(
+          `${formatTokens(agent.deep.inputTokens)} in/${formatTokens(
+            agent.deep.outputTokens,
+          )} out (local history)`,
+        )
+      : theme.dim("");
+
+    return [badge(agent.agent), state, today, lastLimit, note];
+  });
+
+  const header = `${theme.violet(theme.bold(messages.statusTitle))}${" ".repeat(8)}${theme.dim(
+    `project: ${report.project}`,
+  )}`;
+  const table = formatTable(["AGENT", "STATE", "TODAY (baton runs)", "LAST LIMIT", "NOTE"], rows);
+  const lines = [header, "", table, "", theme.dim(messages.statusTokensNote)];
+  if (!options.deep) lines.push(theme.dim(messages.statusDeepHint));
+  return `${lines.join("\n")}\n`;
 }

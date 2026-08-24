@@ -85,10 +85,14 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
   availability filter; router decisions verified live with `BATON_TEST_FAKE=1`
 
 ## M7 — Status
-- [ ] usage.json event log + pruning; `baton status` table + `--json`
-- [ ] Cooldown display with reset hints
-- [ ] `--deep` optional local-history readers (defensive parsing, feature-flagged)
-- DoD: status renders correctly with zero data, partial data, all agents cooling
+- [x] usage.json event log + pruning; `baton status` table + `--json` (+ `--reset`)
+- [x] Cooldown display with reset hints
+- [x] `--deep` optional local-history readers (defensive parsing, every field guarded,
+      redirectable with `BATON_CLAUDE_HOME` / `BATON_CODEX_HOME` so tests never read a
+      real home directory)
+- DoD: covered by tests for zero data, partial data (including a run that reported no
+  token counts) and all agents cooling; verified live against the ledger this build
+  produced
 
 ## M8 — Polish & release
 - [ ] README: hero gif placeholder, quickstart, safety/philosophy section ("why Baton

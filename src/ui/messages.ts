@@ -94,6 +94,14 @@ export const messages = {
 
   handoffWritten: (file: string): string => `handoff written: ${file} (mirrored to .baton/)`,
 
+  statusTitle: "BATON STATUS",
+  statusNoData: "no data yet — run something with baton run",
+  statusTokensNote: "tokens = runs launched via baton only; Baton never asks a provider about your quota",
+  statusDeepHint: "baton status --deep also reads the providers' own local history (read-only)",
+  statusResetConfirm: "clear ~/.baton/usage.json? [y/N] ",
+  statusResetDone: "usage history cleared",
+  statusResetKept: "kept — nothing was deleted",
+
   configTitle: "BATON CONFIG (effective)",
   configGetNeedsKey: "baton config get <key>   e.g. baton config get roles.architect",
   configSetNeedsKeyValue: "baton config set <key> <value>   e.g. baton config set chain codex,claude",

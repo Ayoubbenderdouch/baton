@@ -5,6 +5,7 @@ import { configCommand } from "./commands/config.js";
 import { handoffCommand } from "./commands/handoff.js";
 import { initCommand } from "./commands/init.js";
 import { runCommand, type RunCommandOptions } from "./commands/run.js";
+import { statusCommand, type StatusCommandOptions } from "./commands/status.js";
 import { messages } from "../ui/messages.js";
 import { theme } from "../ui/theme.js";
 
@@ -71,7 +72,10 @@ export function buildProgram(): Command {
     .description("usage and cooldowns across all agents")
     .option("--json", "machine-readable output")
     .option("--deep", "include read-only local provider history")
-    .action(() => todo("status"));
+    .option("--reset", "clear the usage history after a confirmation")
+    .action(async (options: StatusCommandOptions) => {
+      await statusCommand(options);
+    });
 
   program
     .command("doctor")

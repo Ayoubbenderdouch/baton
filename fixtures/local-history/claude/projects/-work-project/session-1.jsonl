@@ -1,0 +1,5 @@
+{"type":"user","timestamp":"2026-08-24T09:00:00.000Z","message":{"role":"user","content":"hi"}}
+{"type":"assistant","timestamp":"2026-08-24T09:00:04.000Z","message":{"role":"assistant","content":[{"type":"text","text":"hello"}],"usage":{"input_tokens":1200,"output_tokens":40,"cache_read_input_tokens":800}}}
+{"type":"assistant","timestamp":"2026-08-24T09:01:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"done"}],"usage":{"input_tokens":300,"output_tokens":12}}}
+this line is not json at all
+{"type":"some_future_record","timestamp":"2026-08-24T09:02:00.000Z","payload":{"nothing":"useful"}}

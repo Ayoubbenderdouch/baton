@@ -7,6 +7,10 @@ All notable changes to Baton are documented here. The format follows
 
 ### Added
 
+- M7 status: `baton status` shows every agent's state, today's runs and tokens (from what
+  Baton itself launched), and any cooldown with its reset hint — plus `--json` for
+  scripting, `--reset` to clear the history, and an optional `--deep` read-only pass over
+  the providers' own local logs.
 - M6 router and config: deterministic routing (explicit flag → role → keyword/size rules
   → chain head) with the decision printed in one line, and a zod-validated config layered
   default → global → project → flags, editable with `baton config set roles.architect
