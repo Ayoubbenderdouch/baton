@@ -26,6 +26,12 @@ short manual checklist per milestone.
 `crash.txt`, plus `unicode-task.txt` (Arabic + emoji). Every LimitDetector default
 pattern references at least one fixture line in a test.
 
+## Colour in tests
+
+CI runners set `FORCE_COLOR`, a piped local shell does not — so a test that compares
+rendered output must strip ANSI before asserting, or it passes locally and fails in CI.
+`npm run test:ci` reproduces the CI colour setting locally.
+
 ## Conventions
 
 - Test files beside sources: `foo.ts` / `foo.test.ts`.

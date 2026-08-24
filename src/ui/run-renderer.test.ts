@@ -11,7 +11,15 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-const lines = (): string[] => written.join("").split("\n").filter((line) => line !== "");
+// CI runners enable colour (FORCE_COLOR), a piped local shell does not — compare the
+// visible text either way.
+// eslint-disable-next-line no-control-regex -- stripping ANSI is the point here
+const stripAnsi = (text: string): string => text.replace(/\x1b\[[0-9;]*m/g, "");
+
+const lines = (): string[] =>
+  stripAnsi(written.join(""))
+    .split("\n")
+    .filter((line) => line !== "");
 
 describe("streamed text rendering", () => {
   it("joins fragments that split mid-sentence into whole lines", () => {
