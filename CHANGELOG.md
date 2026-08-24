@@ -7,6 +7,10 @@ All notable changes to Baton are documented here. The format follows
 
 ### Added
 
+- M4 handoff: `HANDOFF.md` generated from the session store and live git state, written
+  to the project root and mirrored into `.baton/`, refreshed after every turn. Rolling
+  summary compression is pure string logic (no LLM — the account that would run it may be
+  the one at its limit). `baton handoff` writes it on demand.
 - M3 adapters: Codex (`codex exec --json`, thread resume, sandbox mapping) and Gemini
   (`-o stream-json`, `plan`/`auto_edit` approval mapping, non-interactive preamble), both
   fixture-driven. Provider safety gates (Gemini's untrusted folder, Codex's git-repo

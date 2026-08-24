@@ -55,10 +55,12 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
   ⏳ (pending: Windows)
 
 ## M4 — Handoff
-- [ ] HandoffWriter per FAILOVER.md template; deterministic; snapshot tests
-- [ ] Rolling-summary compression (pure string logic + tests)
-- [ ] `baton handoff` command; refresh after every done turn
-- DoD: snapshot test with Arabic content in the task passes on windows-latest
+- [x] HandoffWriter per FAILOVER.md template; deterministic; snapshot tests
+- [x] Rolling-summary compression (pure string logic + tests)
+- [x] `baton handoff` command; refresh after every done turn
+- DoD: snapshot test with Arabic content passes locally, and `RELAY_PREAMBLE` is
+  compared against docs/FAILOVER.md by a test so the two cannot drift;
+  ⏳ (pending: CI) for the windows-latest run
 
 ## M5 — Limit detection & the relay ⭐
 - [ ] LimitDetector layers A/B/C + patterns.json extension mechanism

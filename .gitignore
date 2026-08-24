@@ -6,3 +6,4 @@ coverage/
 .baton/
 last-error.log
 *.tgz
+HANDOFF.md

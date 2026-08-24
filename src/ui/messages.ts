@@ -76,6 +76,11 @@ export const messages = {
 
   agentFailed: (agent: string, kind: string): string => `${agent} stopped: ${kind}`,
 
+  handoffWritten: (file: string): string => `handoff written: ${file} (mirrored to .baton/)`,
+
+  handoffEmpty:
+    "  nothing has run yet — the briefing has the task and the project's verify commands only",
+
   unexpectedError: (logPath: string): string =>
     `baton hit an unexpected error -> details written to ${logPath}`,
 } as const;

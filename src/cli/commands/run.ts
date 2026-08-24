@@ -1,9 +1,11 @@
 import { getAdapter } from "../../adapters/registry.js";
+import { recordTurnInSummary, refreshHandoff } from "../../core/handoff-refresh.js";
 import { runTurn } from "../../core/orchestrator.js";
 import { SessionStore } from "../../core/session-store.js";
 import { isAgentId, type AgentId, type PermissionLevel } from "../../core/types.js";
 import { messages } from "../../ui/messages.js";
 import { RunRenderer } from "../../ui/run-renderer.js";
+import { DEFAULT_MAX_RELAYS } from "./handoff.js";
 import { EXIT } from "../exit-codes.js";
 
 export interface RunCommandOptions {
@@ -97,7 +99,10 @@ export async function runCommand(
       ...(outcome.usage !== undefined ? { usage: outcome.usage } : {}),
       ...(outcome.sessionRef !== undefined ? { sessionRef: outcome.sessionRef } : {}),
     });
+    if (outcome.resultText.trim() !== "") recordTurnInSummary(store, outcome.resultText);
     await store.save();
+    // Cheap insurance: the briefing is refreshed after every turn, not only on relays.
+    await refreshHandoff(cwd, store, { maxRelays: DEFAULT_MAX_RELAYS });
 
     switch (outcome.endedBy) {
       case "done":

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { createRequire } from "node:module";
 import { agentsCommand, doctorCommand } from "./commands/doctor.js";
+import { handoffCommand } from "./commands/handoff.js";
 import { runCommand, type RunCommandOptions } from "./commands/run.js";
 import { messages } from "../ui/messages.js";
 import { theme } from "../ui/theme.js";
@@ -88,7 +89,9 @@ export function buildProgram(): Command {
   program
     .command("handoff")
     .description("write HANDOFF.md for the current session now")
-    .action(() => todo("handoff"));
+    .action(async () => {
+      await handoffCommand();
+    });
 
   program
     .command("config")
