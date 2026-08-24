@@ -95,13 +95,20 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
   produced
 
 ## M8 — Polish & release
-- [ ] README: hero gif placeholder, quickstart, safety/philosophy section ("why Baton
-      never touches your tokens"), config reference generated from zod schema, Arabic
-      quickstart section (`docs/README.ar.md`)
-- [ ] `--help` polish, error remedies audit, `last-error.log`
-- [ ] Optional: Ink interactive shell (skip if time-boxed out — do NOT delay release)
-- [ ] `npm publish --dry-run` clean; CHANGELOG.md; v0.1.0 tag
-- DoD: a stranger on Windows can go README → installed → first relay in <10 minutes
+- [x] README: hero gif placeholder, quickstart, safety/philosophy section, config
+      reference generated from the zod schema (`docs/CONFIG.md`, kept in sync by a test),
+      Arabic quickstart (`docs/README.ar.md`)
+- [x] `--help` polish (examples + disclaimer), error remedies audit, `last-error.log`
+- [x] `baton continue` implemented — it is in the documented command surface, so it does
+      not ship as a stub
+- [ ] Optional: Ink interactive shell — **deliberately skipped**, exactly as this file
+      allows. The CLI is the product; the shell would have delayed the release.
+- [x] `npm publish --dry-run` clean (5 files: dist, README, LICENSE, CHANGELOG,
+      package.json); CHANGELOG.md written in user language; v0.1.0 tag prepared locally
+      (publishing stays manual, the maintainer's call)
+- DoD: verified locally end to end from the packed tarball — install → `baton doctor` →
+  `baton run` → forced limit → relay announcement → `HANDOFF.md` → `baton status`.
+  ⏳ (pending: Windows) for the same walk-through on a real Windows machine.
 
 ## Explicitly out of scope for v0.1
 Parallel agents, LLM routing, plugins/marketplace, provider auth handling of any kind,

@@ -1,4 +1,5 @@
 import { AsyncQueue } from "../core/async-queue.js";
+import { forcedLimitAgents } from "./shared.js";
 import type {
   AgentAdapter,
   AgentEvent,
@@ -33,6 +34,20 @@ export function createBuiltInFakeAdapter(id: AgentId): AgentAdapter {
     }),
     run(request: RunRequest): RunHandle {
       const queue = new AsyncQueue<AgentEvent>();
+      // The two test hooks compose: fake adapters honour a forced limit too, so the
+      // whole relay can be demonstrated with no provider CLI installed at all.
+      if (forcedLimitAgents().includes(id)) {
+        queue.push({ type: "start" });
+        queue.push({ type: "text", text: `(${id}: forced limit for testing)` });
+        queue.push({
+          type: "limit",
+          raw: `BATON_TEST_FORCE_LIMIT=${id} — simulated usage limit`,
+          resetHint: "resets in ~2h (simulated)",
+        });
+        queue.push({ type: "done", ok: false, resultText: "" });
+        queue.close();
+        return { events: queue, cancel: async () => undefined };
+      }
       const text = `fake ${id} handled: ${request.prompt.slice(0, 60)}`;
       queue.push({ type: "start", sessionRef: `fake-${id}` });
       queue.push({ type: "text", text });

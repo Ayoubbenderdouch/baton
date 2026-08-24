@@ -170,9 +170,16 @@ BATON_TEST_FORCE_LIMIT=claude baton run "reply with the word ok"
 ```
 
 Claude reports a simulated limit without being spawned at all, so you can watch the whole
-relay — handoff written, baton passed, next agent finishing the task. `BATON_TEST_FAKE=1`
-goes further and replaces every adapter with a fake, which is how the test suite runs a
-complete task with no provider CLI, no account and no network.
+relay — handoff written, baton passed, next agent finishing the task.
+
+The two hooks compose, so you can see the relay with **no provider CLI installed at all**:
+
+```bash
+BATON_TEST_FAKE=1 BATON_TEST_FORCE_LIMIT=claude baton run "refactor the payment module"
+```
+
+`BATON_TEST_FAKE=1` replaces every adapter with a fake — which is also how the test suite
+and the packaging smoke test run a complete task with no account and no network.
 
 ## Known limitations (v0.1.0)
 
