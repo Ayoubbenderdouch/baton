@@ -1,0 +1,2 @@
+Please sign in to continue. Run `gemini` once and choose your Google account.
+Error: authentication required (no credentials found for this workspace).

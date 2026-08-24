@@ -1,0 +1,4 @@
+{"type":"init","timestamp":"2026-08-24T20:56:17.886Z","session_id":"00000000-0000-4000-8000-000000000201","model":"auto-gemini-3"}
+{"type":"message","timestamp":"2026-08-24T20:56:17.887Z","role":"user","content":"summarise the repository"}
+{"type":"error","timestamp":"2026-08-24T20:56:19.100Z","message":"429 RESOURCE_EXHAUSTED: Quota exceeded for quota metric 'Generate requests' and limit 'GenerateRequestsPerDayPerProjectPerModel'. Retry in 4h."}
+{"type":"result","timestamp":"2026-08-24T20:56:19.120Z","status":"error","error":{"type":"ApiError","message":"429 RESOURCE_EXHAUSTED: Quota exceeded for quota metric 'Generate requests'"},"stats":{"total_tokens":0,"input_tokens":0,"output_tokens":0,"cached":0,"duration_ms":1234,"tool_calls":0}}

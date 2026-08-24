@@ -1,0 +1,22 @@
+Error when talking to Gemini API Full report available at: /tmp/gemini-client-error-report.json ModelNotFoundError: models/definitely-not-a-model-xyz is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.
+    at classifyGoogleError (file:///home/user/.local/lib/node_modules/@google/gemini-cli/bundle/chunk-LZUWGCRJ.js:306520:12)
+    at retryWithBackoff (file:///home/user/.local/lib/node_modules/@google/gemini-cli/bundle/chunk-LZUWGCRJ.js:307295:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async GeminiChat.makeApiCallAndProcessStream (file:///home/user/.local/lib/node_modules/@google/gemini-cli/bundle/chunk-LZUWGCRJ.js:330898:28)
+    at async GeminiChat.streamWithRetries (file:///home/user/.local/lib/node_modules/@google/gemini-cli/bundle/chunk-LZUWGCRJ.js:330671:29)
+    at async Turn.run (file:///home/user/.local/lib/node_modules/@google/gemini-cli/bundle/chunk-LZUWGCRJ.js:331556:24)
+    at async GeminiClient.processTurn (file:///home/user/.local/lib/node_modules/@google/gemini-cli/bundle/chunk-LZUWGCRJ.js:345083:22)
+    at async GeminiClient.sendMessageStream (file:///home/user/.local/lib/node_modules/@google/gemini-cli/bundle/chunk-LZUWGCRJ.js:345180:14)
+    at async file:///home/user/.local/lib/node_modules/@google/gemini-cli/bundle/gemini-KK7AERSF.js:11524:26
+    at async main (file:///home/user/.local/lib/node_modules/@google/gemini-cli/bundle/gemini-KK7AERSF.js:16951:5) {
+  code: 404
+}
+{
+  "session_id": "00000000-0000-4000-8000-000000000036",
+  "error": {
+    "type": "Error",
+    "message": "models/definitely-not-a-model-xyz is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.",
+    "code": 1
+  }
+}
+

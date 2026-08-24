@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"01a00000-0000-0000-0000-00000000000a"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Starting on the migration script."}}
+{"type":"error","message":"{\"type\":\"error\",\"status\":429,\"error\":{\"type\":\"rate_limit_error\",\"message\":\"You've hit your usage limit. Try again in 3 hours 12 minutes.\"}}"}
+{"type":"turn.failed","error":{"message":"{\"type\":\"error\",\"status\":429,\"error\":{\"type\":\"rate_limit_error\",\"message\":\"You've hit your usage limit. Try again in 3 hours 12 minutes.\"}}"}}
