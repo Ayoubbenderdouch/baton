@@ -28,11 +28,13 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
   `npm run smoke`; ⏳ (pending: CI) for ubuntu/windows
 
 ## M1 — Detection & doctor
-- [ ] `resolveBin()` with PATHEXT handling + unit tests (fake shims fixture)
-- [ ] Adapter registry + `detect()` for claude/codex/gemini (version + auth probe)
-- [ ] `baton doctor` and `baton agents` per UX-SPEC
-- DoD: fake-shim CI test proves detection on windows-latest; real-machine manual check
-  documented in TESTING.md checklist
+- [x] `resolveBin()` with PATHEXT handling + unit tests (fake shims fixture)
+- [x] Adapter registry + `detect()` for claude/codex/gemini (version + auth probe;
+      the probe is opt-in via `baton doctor --probe` because it costs one request)
+- [x] `baton doctor` and `baton agents` per UX-SPEC
+- DoD: fake-shim test proves detection (runs on every OS; Windows semantics covered by
+  platform-parameterised `resolveBin` tests) ⏳ (pending: CI) for the windows-latest run;
+  real-machine manual check documented in TESTING.md (L1–L3 ✅ macOS, ⏳ Windows)
 
 ## M2 — Claude adapter + run pipeline
 - [ ] Event model (`AgentEvent`) + renderer (TTY + non-TTY paths)

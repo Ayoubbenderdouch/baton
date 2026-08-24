@@ -1,0 +1,85 @@
+import type { DetectResult } from "../core/types.js";
+import { messages } from "./messages.js";
+import { formatTable } from "./table.js";
+import { badge, theme } from "./theme.js";
+
+const DOT_READY = "●"; // ●
+const DOT_OFF = "○"; // ○
+const MARK_FAIL = "✗"; // ✗
+
+function installedCell(result: DetectResult): string {
+  if (!result.installed) return `${theme.dim(DOT_OFF)} ${theme.dim("not installed")}`;
+  return `${theme.success(DOT_READY)} ${result.version ?? "unknown version"}`;
+}
+
+function authCell(result: DetectResult): string {
+  switch (result.auth) {
+    case "ok":
+      return theme.success("signed in");
+    case "signed_out":
+      return theme.error("signed out");
+    case "unknown":
+      return theme.warn("unclear");
+    default:
+      return theme.dim("not probed");
+  }
+}
+
+function verdictCell(result: DetectResult): string {
+  switch (result.verdict) {
+    case "ready":
+      return theme.success("ready");
+    case "not_installed":
+      return theme.dim("install it");
+    case "auth":
+      return theme.error("sign in");
+    default:
+      return theme.warn("error");
+  }
+}
+
+function remedyLines(results: DetectResult[]): string[] {
+  const lines: string[] = [];
+  for (const result of results) {
+    if (result.verdict === "not_installed" && result.remedy) {
+      lines.push(`${theme.dim(MARK_FAIL)} ${messages.remedyInstall(result.id, result.remedy)}`);
+    } else if (result.verdict === "auth" && result.remedy) {
+      lines.push(`${theme.error(MARK_FAIL)} ${messages.remedySignIn(result.id, result.remedy)}`);
+    } else if (result.verdict === "error" && result.detail) {
+      lines.push(`${theme.warn(MARK_FAIL)} ${messages.remedyError(result.id, result.detail)}`);
+    }
+  }
+  return lines;
+}
+
+export function renderDoctor(results: DetectResult[], options: { probed: boolean }): string {
+  const table = formatTable(
+    ["AGENT", "INSTALLED", "AUTH", "VERDICT"],
+    results.map((result) => [
+      badge(result.id),
+      installedCell(result),
+      authCell(result),
+      verdictCell(result),
+    ]),
+  );
+  const ready = results.filter((result) => result.verdict === "ready").map((r) => r.id);
+  const parts = [theme.violet(theme.bold(messages.doctorTitle)), "", table, ""];
+  const remedies = remedyLines(results);
+  if (remedies.length > 0) parts.push(...remedies, "");
+  parts.push(messages.doctorSummary(ready, results.length));
+  if (!options.probed) parts.push(theme.dim(messages.authNotProbedNote));
+  return `${parts.join("\n")}\n`;
+}
+
+export function renderAgents(results: DetectResult[]): string {
+  const table = formatTable(
+    ["AGENT", "CLI", "VERSION", "AVAILABLE"],
+    results.map((result) => [
+      badge(result.id),
+      result.binPath ? theme.dim(result.binPath) : theme.dim("-"),
+      result.version ?? theme.dim("-"),
+      result.verdict === "ready" ? theme.success("yes") : theme.dim("no"),
+    ]),
+  );
+  return `${theme.violet(theme.bold(messages.agentsTitle))}\n\n${table}\n`;
+}

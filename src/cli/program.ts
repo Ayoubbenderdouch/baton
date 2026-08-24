@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { createRequire } from "node:module";
+import { agentsCommand, doctorCommand } from "./commands/doctor.js";
 import { messages } from "../ui/messages.js";
 import { theme } from "../ui/theme.js";
 
@@ -69,12 +70,17 @@ export function buildProgram(): Command {
   program
     .command("doctor")
     .description("check which agent CLIs are installed and signed in")
-    .action(() => todo("doctor"));
+    .option("--probe", "also verify sign-in by running one tiny prompt per agent")
+    .action(async (options: { probe?: boolean }) => {
+      await doctorCommand(options);
+    });
 
   program
     .command("agents")
     .description("table of adapters, versions and availability")
-    .action(() => todo("agents"));
+    .action(async () => {
+      await agentsCommand();
+    });
 
   program
     .command("handoff")
