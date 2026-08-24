@@ -109,22 +109,28 @@ describe("--deep local history (read-only, defensive)", () => {
     path.join(process.cwd(), "fixtures", "local-history", agent);
 
   it("sums claude's local transcripts and ignores junk lines", async () => {
-    const totals = await readClaudeLocalHistory(path.join(root("claude"), "projects"));
+    const dir = path.join(root("claude"), "projects");
+    const totals = await readClaudeLocalHistory(dir);
     expect(totals).toEqual({
       agent: "claude",
       inputTokens: 1500,
       outputTokens: 52,
       entries: 2,
+      filesRead: 1,
+      root: dir,
     });
   });
 
   it("sums codex's session logs", async () => {
-    const totals = await readCodexLocalHistory(path.join(root("codex"), "sessions"));
+    const dir = path.join(root("codex"), "sessions");
+    const totals = await readCodexLocalHistory(dir);
     expect(totals).toEqual({
       agent: "codex",
       inputTokens: 7500,
       outputTokens: 350,
       entries: 2,
+      filesRead: 1,
+      root: dir,
     });
   });
 
@@ -151,5 +157,61 @@ describe("formatTokens", () => {
     expect(formatTokens(41_000)).toBe("41k");
     expect(formatTokens(15_667)).toBe("15.7k");
     expect(formatTokens(120_400)).toBe("120k");
+  });
+});
+
+describe("--deep never opens a file that looks like a secret", () => {
+  it("skips credential-ish names even when they end in .jsonl", async () => {
+    const { isForbiddenHistoryFile } = await import("./deep-history.js");
+    for (const name of [
+      ".credentials.json",
+      "credentials.jsonl",
+      "auth.jsonl",
+      "oauth-token.jsonl",
+      "session_key.jsonl",
+      "id_rsa.pem",
+      "api.key",
+    ]) {
+      expect(isForbiddenHistoryFile(name), name).toBe(true);
+    }
+    for (const name of ["session-1.jsonl", "rollout-2026-08-24.jsonl", "conversation.jsonl"]) {
+      expect(isForbiddenHistoryFile(name), name).toBe(false);
+    }
+  });
+
+  it("ignores a planted credential file that carries a usage block", async () => {
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const dir = mkdtempSync(path.join(tmpdir(), "baton-deep-"));
+    dirs.push(dir);
+    writeFileSync(
+      path.join(dir, "credentials.jsonl"),
+      JSON.stringify({ usage: { input_tokens: 999999, output_tokens: 999999 }, token: "sk-secret" }),
+      "utf8",
+    );
+    writeFileSync(
+      path.join(dir, "session-1.jsonl"),
+      JSON.stringify({ usage: { input_tokens: 10, output_tokens: 2 } }),
+      "utf8",
+    );
+    const totals = await readClaudeLocalHistory(dir);
+    expect(totals.inputTokens).toBe(10);
+    expect(totals.filesRead).toBe(1);
+  });
+
+  it("returns only numbers plus the disclosed path — never transcript content", async () => {
+    const totals = await readClaudeLocalHistory(
+      path.join(process.cwd(), "fixtures", "local-history", "claude", "projects"),
+    );
+    expect(Object.keys(totals).sort()).toEqual([
+      "agent",
+      "entries",
+      "filesRead",
+      "inputTokens",
+      "outputTokens",
+      "root",
+    ]);
+    expect(typeof totals.inputTokens).toBe("number");
+    expect(totals.root).toContain("fixtures");
   });
 });

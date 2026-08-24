@@ -107,6 +107,9 @@ export const messages = {
   statusTitle: "BATON STATUS",
   statusNoData: "no data yet — run something with baton run",
   statusTokensNote: "tokens = runs launched via baton only; Baton never asks a provider about your quota",
+  deepDisclosure: (agent: string, files: number, root: string): string =>
+    `--deep read ${files} transcript ${files === 1 ? "file" : "files"} for ${agent} in ${root} (token counts only, nothing written)`,
+
   statusDeepHint: "baton status --deep also reads the providers' own local history (read-only)",
   statusResetConfirm: "clear ~/.baton/usage.json? [y/N] ",
   statusResetDone: "usage history cleared",

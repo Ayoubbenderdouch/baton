@@ -39,6 +39,7 @@ export async function statusCommand(options: StatusCommandOptions = {}): Promise
     cooldownMinutes: config.cooldownMinutes,
   });
 
+  const deepNotes: string[] = [];
   if (options.deep === true) {
     // Read-only, defensive, and entirely optional (docs/USAGE-TRACKING.md).
     const [claude, codex] = await Promise.all([
@@ -55,6 +56,9 @@ export async function statusCommand(options: StatusCommandOptions = {}): Promise
           entries: totals.entries,
         };
       }
+      // Say out loud which directory was read and how much of it. Reading a provider's
+      // own logs is opt-in; it should never be quiet.
+      deepNotes.push(messages.deepDisclosure(totals.agent, totals.filesRead, totals.root));
     }
   }
 
@@ -65,6 +69,7 @@ export async function statusCommand(options: StatusCommandOptions = {}): Promise
   }
 
   process.stdout.write(renderStatus(report, { deep: options.deep === true }));
+  for (const note of deepNotes) process.stdout.write(`${theme.dim(note)}\n`);
   process.exitCode = EXIT.ok;
 }
 

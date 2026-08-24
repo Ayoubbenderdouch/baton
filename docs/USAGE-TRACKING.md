@@ -19,6 +19,15 @@ Keep expectations honest — Baton reports what it can actually know, and labels
    Parse defensively: unknown format → skip silently, never crash `status`. These
    formats are undocumented internals and may change any day; guard every field access.
 
+   **Boundaries of this read (enforced in code, proven by tests):** only `*.jsonl` files
+   are opened; any file whose name suggests a secret (`credential`, `auth`, `token`,
+   `secret`, `cookie`, `session-key`, `.key`, `.pem`) is skipped *before* it is opened;
+   only numeric token counts and timestamps are extracted, never transcript text; nothing
+   is ever written into those directories; and the read happens only when the user types
+   `--deep`, which then prints exactly which directory was read and how many files.
+   `BATON_CLAUDE_HOME` / `BATON_CODEX_HOME` redirect the read (tests use them, so no test
+   ever touches a real home directory).
+
 **Never** attempt to query provider servers for quota. That would require credentials —
 forbidden by the prime rule.
 

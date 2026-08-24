@@ -89,7 +89,10 @@ This is the whole design, not a footnote:
 
 The one thing Baton reads from your machine besides your project is its own state in
 `~/.baton/` — and, only if you ask for it with `baton status --deep`, the token counts in
-the providers' local logs, read-only.
+the providers' local logs, read-only. That read is deliberately narrow: `*.jsonl` files
+only, anything whose name looks like a secret skipped before it is opened, numbers and
+timestamps extracted and nothing else, nothing ever written — and `--deep` prints which
+directory it read and how many files, so it is never quiet about it.
 
 It also never quietly relaxes another tool's safety gate. When Gemini refuses an
 untrusted folder or Codex refuses to run outside a git repo, Baton shows you the gate and

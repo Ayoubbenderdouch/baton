@@ -9,6 +9,10 @@ export interface DeepTotals {
   outputTokens: number;
   /** How many records contributed — 0 means "found nothing usable". */
   entries: number;
+  /** The directory that was read, so `baton status --deep` can name it out loud. */
+  root: string;
+  /** How many files were opened — the user sees the size of what was touched. */
+  filesRead: number;
 }
 
 /**
@@ -22,6 +26,17 @@ export interface DeepTotals {
  */
 const MAX_FILES = 400;
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
+
+/**
+ * Files this reader must never open, whatever their extension. The transcripts it wants
+ * are token counts; anything whose name suggests a secret is skipped before it is read,
+ * so a provider moving a credential into these trees cannot make Baton read it.
+ */
+const NEVER_READ = /(credential|auth|token|secret|cookie|session[_-]?key|\.key$|\.pem$)/i;
+
+export function isForbiddenHistoryFile(fileName: string): boolean {
+  return NEVER_READ.test(fileName);
+}
 
 export function claudeHistoryRoot(): string {
   return process.env.BATON_CLAUDE_HOME ?? path.join(os.homedir(), ".claude", "projects");
@@ -45,7 +60,13 @@ async function collectJsonlFiles(root: string, budget = MAX_FILES): Promise<stri
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) queue.push(full);
-      else if (entry.isFile() && entry.name.endsWith(".jsonl")) found.push(full);
+      else if (
+        entry.isFile() &&
+        entry.name.endsWith(".jsonl") &&
+        !isForbiddenHistoryFile(entry.name)
+      ) {
+        found.push(full);
+      }
       if (found.length >= budget) break;
     }
   }
@@ -80,7 +101,14 @@ function timestampOf(value: unknown): number | undefined {
 }
 
 async function readTotals(root: string, agent: AgentId, since?: Date): Promise<DeepTotals> {
-  const totals: DeepTotals = { agent, inputTokens: 0, outputTokens: 0, entries: 0 };
+  const totals: DeepTotals = {
+    agent,
+    inputTokens: 0,
+    outputTokens: 0,
+    entries: 0,
+    root,
+    filesRead: 0,
+  };
   const files = await collectJsonlFiles(root);
   const sinceMs = since?.getTime();
 
@@ -89,6 +117,7 @@ async function readTotals(root: string, agent: AgentId, since?: Date): Promise<D
       const info = await stat(file);
       if (info.size > MAX_FILE_BYTES) continue;
       const content = await readFile(file, { encoding: "utf8" });
+      totals.filesRead += 1;
       for (const line of content.split(/\r?\n/)) {
         if (line.trim() === "") continue;
         let parsed: unknown;
