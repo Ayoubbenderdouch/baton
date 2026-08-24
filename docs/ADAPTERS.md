@@ -4,8 +4,11 @@ One adapter per provider, in `src/adapters/<id>/`. Each adapter spawns the **off
 CLI in its documented headless / non-interactive mode** and normalizes output into
 `AgentEvent`s (see ARCHITECTURE.md).
 
-> ⚠️ **Verify at build time.** These flags were verified against docs and current
-> references as of August 2026, but all three CLIs move fast. Before implementing each
+> ✅ **Verified 2026-08-24** against claude 2.1.241, codex-cli 0.147.0 and gemini 0.56.0
+> on macOS — see `docs/CLI-VERIFICATION.md` for the evidence log and the deltas that were
+> folded into this file.
+>
+> ⚠️ **Verify at build time.** All three CLIs move fast. Before implementing each
 > adapter, run the real `--help` (`claude --help`, `codex exec --help`, `gemini --help`)
 > and adjust. If a flag differs, trust the installed binary, update this file, and add a
 > fixture capturing the real output shape.
@@ -31,16 +34,39 @@ claude -p "<prompt>" --output-format stream-json --verbose
   - `auto` → `--permission-mode acceptEdits` plus a scoped `--allowedTools` list.
     Never default to `--dangerously-skip-permissions`; expose it only behind an explicit
     `--unsafe` Baton flag with a red warning.
-- Cap runaway runs: `--max-turns <n>` (config, default 30).
+- ~~Cap runaway runs: `--max-turns <n>`~~ — **removed from Claude Code by 2.1.241**; the
+  flag no longer exists. Baton bounds a run with its own `runTimeoutMs` instead, and a
+  user who wants a turn cap passes it through `agents.claude.extraArgs`.
 - **Resume:** capture `session_id` from output; native continuation is
   `claude --resume <session_id> -p "<follow-up>"` (also `--continue` for most recent).
   Prefer native resume for same-agent `baton continue`; use HANDOFF preamble when
   crossing agents.
 
-**Parsing:** each stream-json line has a `type` field (init/system, assistant, tool
-events, final `result`). Map assistant text → `text` events, tool events → `tool`,
-final result → `done` with `resultText` and `sessionRef`. Non-zero exit or
-`is_error: true` → classify via LimitDetector before emitting `error`.
+**Parsing:** each stream-json line has a `type` field. Verified line types in 2.1.241:
+`system` (`subtype: init` carries `session_id` and `cwd`; also `hook_started` /
+`hook_response` from the user's own hooks), `assistant` (`message.content[]` with
+`{type:"text"}` and `{type:"tool_use", name, input}`), `user` (tool results),
+**`rate_limit_event`**, and the final `result` envelope. Map assistant text → `text`,
+`tool_use` → `tool`, final result → `done` with `resultText` and `sessionRef`. Unknown
+line types must be ignored, never fatal — Claude Code adds types over time.
+
+**`rate_limit_event` (structured limit signal, verified capture):**
+
+```json
+{"type":"rate_limit_event","rate_limit_info":{"status":"allowed","resetsAt":1787619600,
+ "rateLimitType":"five_hour","overageStatus":"rejected","isUsingOverage":false}}
+```
+
+`status: "allowed"` is the healthy case. A blocked status (rejected / exhausted /
+blocked / limit_reached / throttled) is Layer A limit detection for Claude, and
+`resetsAt` (unix seconds) gives an exact `resetHint` — far better than regex. An
+unrecognised status is deliberately treated as *not* a limit.
+
+**stdin:** the spawned CLI must be handed a closed stdin. With a piped, never-closed
+stdin the provider CLIs wait for input (codex prints "Reading additional input from
+stdin...") and the run hangs. Baton always passes an explicit (usually empty) stdin.
+
+Non-zero exit or `is_error: true` → classify via LimitDetector before emitting `error`.
 
 **Usage source:** the final result envelope (turns, usage metadata) — record what's
 present, leave absent fields undefined. Optional deeper history: Claude Code writes

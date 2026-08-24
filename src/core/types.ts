@@ -42,6 +42,8 @@ export interface RunRequest {
   /** Abort the run from the outside. */
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** `--verbose`: every raw provider line, exactly as it arrived. */
+  onRawLine?: (source: "stdout" | "stderr", line: string) => void;
 }
 
 export type AgentEvent =

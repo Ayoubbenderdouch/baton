@@ -1,0 +1,170 @@
+import type { AgentEvent, AgentId } from "../core/types.js";
+import { messages } from "./messages.js";
+import { startSpinner, type Spinner } from "./spinner.js";
+import { badge, isTTY, theme } from "./theme.js";
+
+export interface RendererOptions {
+  quiet?: boolean;
+  verbose?: boolean;
+  /** No output for this long -> say so instead of looking frozen. */
+  stallMs?: number;
+}
+
+export interface RelayInfo {
+  from: AgentId;
+  to: AgentId;
+  resetHint?: string;
+  handoffPath: string;
+}
+
+const BAR = "│";
+const START = "◇";
+const RUN = "▐";
+const DONE = "◆";
+const DEFAULT_STALL_MS = 120_000;
+
+function clip(text: string, max = 100): string {
+  const single = text.replace(/\s+/g, " ").trim();
+  return single.length <= max ? single : `${single.slice(0, max - 1)}…`;
+}
+
+/**
+ * The run view (docs/UX-SPEC.md). Two paths, same information: a live TTY view with a
+ * spinner, and plain `baton:` lines everywhere else (pipes, CI, --quiet).
+ */
+export class RunRenderer {
+  private readonly plain: boolean;
+  private readonly verbose: boolean;
+  private readonly stallMs: number;
+  private spinner: Spinner | undefined;
+  private stallTimer: NodeJS.Timeout | undefined;
+  private lastEventAt = Date.now();
+  private currentAgent: AgentId | undefined;
+
+  constructor(options: RendererOptions = {}) {
+    this.plain = options.quiet === true || !isTTY();
+    this.verbose = options.verbose === true;
+    this.stallMs = options.stallMs ?? DEFAULT_STALL_MS;
+  }
+
+  private write(line: string): void {
+    this.spinner?.stop();
+    process.stdout.write(`${line}\n`);
+    if (this.spinner && this.currentAgent) this.startSpinnerFor(this.currentAgent);
+  }
+
+  private startSpinnerFor(agent: AgentId): void {
+    if (this.plain) return;
+    this.spinner = startSpinner(`${RUN} ${badge(agent)} ${theme.dim("working")}`);
+  }
+
+  task(task: string): void {
+    this.write(this.plain ? `baton: run "${clip(task, 120)}"` : `${theme.violet(START)} baton run "${clip(task, 120)}"`);
+  }
+
+  routerNote(note: string): void {
+    this.write(this.plain ? `baton: ${note}` : `${theme.dim(BAR)} ${theme.dim(note)}`);
+  }
+
+  agentStart(agent: AgentId): void {
+    this.currentAgent = agent;
+    this.lastEventAt = Date.now();
+    if (this.plain) {
+      this.write(`baton: ${agent} started`);
+    } else {
+      this.startSpinnerFor(agent);
+    }
+    this.stallTimer = setInterval(() => this.checkStall(), 15_000);
+    this.stallTimer.unref?.();
+  }
+
+  private checkStall(): void {
+    const idleMs = Date.now() - this.lastEventAt;
+    if (idleMs < this.stallMs) return;
+    const minutes = Math.round(idleMs / 60_000);
+    const note = messages.stillWorking(minutes);
+    if (this.plain) this.write(`baton: ${note}`);
+    else this.spinner?.update(`${RUN} ${badge(this.currentAgent ?? "claude")} ${theme.dim(note)}`);
+  }
+
+  event(event: AgentEvent): void {
+    this.lastEventAt = Date.now();
+    switch (event.type) {
+      case "text":
+        if (event.text.trim() !== "") this.write(this.line(event.text.trim()));
+        break;
+      case "tool":
+        this.write(
+          this.line(theme.dim(event.detail ? `${event.name}: ${clip(event.detail)}` : event.name)),
+        );
+        break;
+      case "limit":
+      case "usage":
+      case "start":
+      case "done":
+      case "error":
+        break;
+    }
+    if (this.verbose) this.write(theme.dim(`  event ${JSON.stringify(event)}`));
+  }
+
+  raw(source: "stdout" | "stderr", line: string): void {
+    if (!this.verbose || line.trim() === "") return;
+    this.write(theme.dim(`  ${source} ${clip(line, 160)}`));
+  }
+
+  private line(text: string): string {
+    return this.plain ? `baton: ${text}` : `${theme.dim(BAR)}  ${text}`;
+  }
+
+  /** The signature moment — loud, two lines, exactly per UX-SPEC. */
+  relay(info: RelayInfo): void {
+    const reset = info.resetHint ? ` (${info.resetHint})` : "";
+    if (this.plain) {
+      this.write(`baton: ${info.from} hit its usage limit${reset}`);
+      this.write(`baton: passing the baton to ${info.to} (handoff written: ${info.handoffPath})`);
+      return;
+    }
+    this.write(
+      `${theme.warn("⚡")} ${badge(info.from)} ${theme.warn(`hit its usage limit${reset}`)}`,
+    );
+    this.write(
+      `${theme.accent("🏃")} ${theme.accent("passing the baton →")} ${badge(info.to)}  ${theme.dim(
+        `(handoff written: ${info.handoffPath})`,
+      )}`,
+    );
+  }
+
+  agentDone(agent: AgentId, durationMs: number, filesChanged: number): void {
+    const summary = messages.turnSummary(durationMs, filesChanged);
+    this.stop();
+    this.write(
+      this.plain
+        ? `baton: ${agent} done — ${summary}`
+        : `${theme.success(DONE)} ${badge(agent)} ${summary}`,
+    );
+  }
+
+  note(text: string): void {
+    this.write(this.plain ? `baton: ${text}` : `${theme.dim(BAR)} ${theme.dim(text)}`);
+  }
+
+  warn(text: string): void {
+    this.write(this.plain ? `baton: ${text}` : `${theme.warn("!")} ${text}`);
+  }
+
+  /** Errors are remedy-first and never more than three lines (baton-ui-style). */
+  fail(what: string, remedy?: string, logPath?: string): void {
+    this.stop();
+    this.write(this.plain ? `baton: ${what}` : `${theme.error("✗")} ${what}`);
+    if (remedy) this.write(this.plain ? `baton: ${remedy}` : `  ${theme.accent(remedy)}`);
+    if (logPath) this.write(theme.dim(`  ${messages.logHint(logPath)}`));
+  }
+
+  stop(): void {
+    if (this.stallTimer) clearInterval(this.stallTimer);
+    this.stallTimer = undefined;
+    this.spinner?.stop();
+    this.spinner = undefined;
+  }
+}

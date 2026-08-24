@@ -38,6 +38,44 @@ export const messages = {
     `${agent}: not signed in -> run: ${command}   (then retry baton run)`,
   remedyError: (agent: string, detail: string): string => `${agent}: ${detail}`,
 
+  stillWorking: (minutes: number): string =>
+    `still working — no output for ${minutes} min`,
+
+  turnSummary: (durationMs: number, filesChanged: number): string => {
+    const seconds = Math.round(durationMs / 1000);
+    const time = seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+    const files = filesChanged === 1 ? "1 file changed" : `${filesChanged} files changed`;
+    return `done in ${time} · ${files}`;
+  },
+
+  logHint: (logPath: string): string => `full detail: ${logPath}`,
+
+  routerDecision: (agent: string, reason: string): string => `router → ${agent} (${reason})`,
+
+  noAgentAvailable:
+    "no agent is available — run `baton doctor` to see what is installed and signed in",
+
+  agentNotInstalled: (agent: string, command: string): string =>
+    `${agent} is not installed -> run: ${command}`,
+
+  cancelled: "cancelled — the agent process and its children were stopped",
+
+  emptyTask: "no task given",
+
+  unknownAgent: (agent: string): string =>
+    `unknown agent "${agent}" — pick one of claude, codex, gemini`,
+
+  unsafeWarning: (agent: string): string =>
+    `--unsafe: ${agent} runs with its own permission bypass. It can change anything in this folder.`,
+
+  sessionRecovered:
+    ".baton/session.json was unreadable — kept it as session.json.bak and started fresh",
+
+  limitNoRelayYet: (agent: string, resetHint?: string): string =>
+    `${agent} hit its usage limit${resetHint ? ` (${resetHint})` : ""}`,
+
+  agentFailed: (agent: string, kind: string): string => `${agent} stopped: ${kind}`,
+
   unexpectedError: (logPath: string): string =>
     `baton hit an unexpected error -> details written to ${logPath}`,
 } as const;

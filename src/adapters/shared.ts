@@ -1,6 +1,16 @@
+import { AsyncQueue } from "../core/async-queue.js";
 import { resolveBin } from "../core/resolve-bin.js";
-import { parseVersion, runOnce } from "../core/spawn.js";
-import type { AgentId, DetectOptions, DetectResult } from "../core/types.js";
+import { parseVersion, runOnce, spawnStreaming } from "../core/spawn.js";
+import { toLines } from "../core/stream.js";
+import type {
+  AgentEvent,
+  AgentId,
+  DetectOptions,
+  DetectResult,
+  RunHandle,
+  RunRequest,
+} from "../core/types.js";
+import type { Invocation } from "./invocation.js";
 
 /** Everything provider-specific that detection needs, in one literal per adapter. */
 export interface ProviderSpec {
@@ -134,5 +144,135 @@ export function unimplementedRun(id: AgentId): {
       },
     },
     cancel: async () => undefined,
+  };
+}
+
+/**
+ * Classify a failed run when the provider gave us no structured signal.
+ * Limit detection proper lives in the LimitDetector (M5); this only separates a
+ * sign-in problem from a plain crash so the user gets the right remedy.
+ */
+export function classifyFailure(output: string): "auth" | "crash" {
+  return looksLikeAuthProblem(output) ? "auth" : "crash";
+}
+
+/** Windows caps a command line at ~32k chars — long prompts go through stdin instead. */
+export const MAX_PROMPT_ARG_CHARS = 8000;
+
+/** How much stderr to keep for classification — enough to match, never unbounded. */
+const STDERR_TAIL_LIMIT = 64_000;
+
+export interface ProviderRunConfig {
+  id: AgentId;
+  binName: string;
+  installCommand: string;
+  invocation: Invocation;
+  /** Pure mapping of one stdout line to events (fixture-tested per provider). */
+  parseLine: (line: string) => AgentEvent[];
+  /** Some CLIs (codex) put progress on stderr — optional extra mapping. */
+  parseStderrLine?: (line: string) => AgentEvent[];
+}
+
+/**
+ * The shared run loop: spawn the official CLI, turn its output into AgentEvents, and
+ * close the stream with exactly one `done`.
+ *
+ * Nothing provider-specific lives here — the differences are the invocation and the
+ * two pure parse functions each adapter passes in.
+ */
+export function runProvider(config: ProviderRunConfig, request: RunRequest): RunHandle {
+  const queue = new AsyncQueue<AgentEvent>();
+  const binPath = resolveBin(config.binName);
+
+  if (binPath === undefined) {
+    queue.push({
+      type: "error",
+      kind: "not_installed",
+      raw: `${config.binName} is not on PATH — install it with: ${config.installCommand}`,
+    });
+    queue.push({ type: "done", ok: false, resultText: "" });
+    queue.close();
+    return { events: queue, cancel: async () => undefined };
+  }
+
+  const child = spawnStreaming(binPath, config.invocation.args, {
+    cwd: request.cwd,
+    ...(request.timeoutMs !== undefined ? { timeoutMs: request.timeoutMs } : {}),
+    ...(config.invocation.input !== undefined ? { input: config.invocation.input } : {}),
+  });
+
+  let cancelled = false;
+  let sawDone = false;
+  let sawLimit = false;
+  let sessionRef: string | undefined;
+  let lastText = "";
+  let stderrTail = "";
+
+  const forward = (events: AgentEvent[]): void => {
+    for (const event of events) {
+      if (event.type === "done") {
+        sawDone = true;
+        if (event.sessionRef !== undefined) sessionRef = event.sessionRef;
+      }
+      if (event.type === "start" && event.sessionRef !== undefined) sessionRef = event.sessionRef;
+      if (event.type === "limit") sawLimit = true;
+      if (event.type === "text") lastText = event.text;
+      queue.push(event);
+    }
+  };
+
+  const pump = async (): Promise<void> => {
+    const readStdout = (async () => {
+      for await (const line of toLines(child.stdout)) {
+        request.onRawLine?.("stdout", line);
+        forward(config.parseLine(line));
+      }
+    })();
+    const readStderr = (async () => {
+      for await (const line of toLines(child.stderr)) {
+        request.onRawLine?.("stderr", line);
+        if (stderrTail.length < STDERR_TAIL_LIMIT) stderrTail += `${line}\n`;
+        if (config.parseStderrLine) forward(config.parseStderrLine(line));
+      }
+    })();
+
+    await Promise.allSettled([readStdout, readStderr]);
+    const result = await child.done;
+
+    if (cancelled) {
+      if (!sawDone) queue.push({ type: "done", ok: false, resultText: lastText });
+      queue.close();
+      return;
+    }
+
+    if (sawDone) {
+      queue.close();
+      return;
+    }
+
+    // The CLI ended without a final envelope: say why in the provider's own words.
+    const combined = `${lastText}\n${stderrTail}`;
+    if (sawLimit) {
+      queue.push({ type: "done", ok: false, resultText: lastText, ...(sessionRef ? { sessionRef } : {}) });
+      queue.close();
+      return;
+    }
+    if (result.timedOut) {
+      queue.push({ type: "error", kind: "crash", raw: "the agent CLI hit Baton's run timeout" });
+    } else {
+      queue.push({ type: "error", kind: classifyFailure(combined), raw: stderrTail.trim() || combined.trim() });
+    }
+    queue.push({ type: "done", ok: false, resultText: lastText, ...(sessionRef ? { sessionRef } : {}) });
+    queue.close();
+  };
+
+  void pump();
+
+  return {
+    events: queue,
+    cancel: async () => {
+      cancelled = true;
+      await child.kill();
+    },
   };
 }

@@ -7,6 +7,11 @@ All notable changes to Baton are documented here. The format follows
 
 ### Added
 
+- M2 run pipeline: the `AgentEvent` model, a Claude Code adapter (stream-json parsing
+  proven by real 2.1.241 captures in `fixtures/claude/`), the live run renderer, the
+  `.baton/session.json` store, and `baton run "task" --agent claude` end to end.
+  Claude's `rate_limit_event` is parsed as a structured limit signal with an exact reset
+  time. Cancellation kills the whole process tree on both platforms.
 - M1 detection: `resolveBin()` (PATHEXT-aware, returns the real on-disk casing), an
   adapter registry with `detect()` for Claude Code, Codex and Gemini, plus `baton doctor`
   (with opt-in `--probe`) and `baton agents`.

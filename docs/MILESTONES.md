@@ -37,11 +37,13 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
   real-machine manual check documented in TESTING.md (L1–L3 ✅ macOS, ⏳ Windows)
 
 ## M2 — Claude adapter + run pipeline
-- [ ] Event model (`AgentEvent`) + renderer (TTY + non-TTY paths)
-- [ ] ClaudeAdapter: spawn, parse json/stream-json fixtures, permission mapping
-- [ ] SessionStore v1: `.baton/session.json` turns + rolling summary
-- [ ] `baton run "task" --agent claude` end-to-end
-- DoD: fixture-driven unit tests for parser; manual live run on macOS + Windows ticked
+- [x] Event model (`AgentEvent`) + renderer (TTY spinner path + plain `baton:` path)
+- [x] ClaudeAdapter: spawn, parse json/stream-json fixtures, permission mapping
+- [x] SessionStore v1: `.baton/session.json` turns + rolling summary
+- [x] `baton run "task" --agent claude` end-to-end
+- DoD: fixture-driven parser tests + an offline spawn→parse→event integration test
+  against a fake CLI (covers CRLF, ENOENT, auth-vs-crash, cancel); live run verified on
+  macOS (TESTING.md L4) and Ctrl+C leaves zero orphans (L5); ⏳ (pending: Windows)
 
 ## M3 — Codex & Gemini adapters
 - [ ] CodexAdapter (`codex exec --json`) with usage extraction from `turn.completed`

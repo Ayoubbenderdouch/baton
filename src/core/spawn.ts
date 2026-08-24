@@ -73,3 +73,98 @@ export function parseVersion(output: string): string | undefined {
   const match = /(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)/.exec(output);
   return match?.[1];
 }
+
+export interface StreamingProcess {
+  pid: number | undefined;
+  stdout: AsyncIterable<Uint8Array>;
+  stderr: AsyncIterable<Uint8Array>;
+  /** Resolves with the exit code once the process is gone (never rejects). */
+  done: Promise<{ exitCode: number | undefined; timedOut: boolean; failed: boolean }>;
+  kill(): Promise<void>;
+}
+
+export interface SpawnStreamingOptions {
+  cwd?: string;
+  timeoutMs?: number;
+  /** Prompt payload for CLIs fed through stdin instead of argv. */
+  input?: string;
+}
+
+/**
+ * Spawn a provider CLI and stream both pipes.
+ *
+ * POSIX children are detached so they get their own process group and `kill()` can take
+ * down the whole tree (agent CLIs spawn shells, which spawn compilers). Because a
+ * detached child no longer receives the terminal's Ctrl+C, Baton forwards cancellation
+ * itself — that is what keeps zero orphans on both platforms.
+ */
+export function spawnStreaming(
+  bin: string,
+  args: string[],
+  options: SpawnStreamingOptions = {},
+): StreamingProcess {
+  const isWindows = process.platform === "win32";
+  const child = execa(bin, args, {
+    cwd: options.cwd,
+    timeout: options.timeoutMs,
+    reject: false,
+    detached: !isWindows,
+    buffer: false,
+    input: options.input ?? "",
+    encoding: "buffer",
+    windowsHide: true,
+  });
+
+  const done = child.then(
+    (result) => ({
+      exitCode: result.exitCode,
+      timedOut: Boolean(result.timedOut),
+      failed: Boolean(result.failed),
+    }),
+    () => ({ exitCode: undefined, timedOut: false, failed: true }),
+  );
+
+  return {
+    pid: child.pid,
+    stdout: child.stdout as unknown as AsyncIterable<Uint8Array>,
+    stderr: child.stderr as unknown as AsyncIterable<Uint8Array>,
+    done,
+    kill: async () => {
+      await killTree(child.pid, () => child.kill("SIGKILL"));
+    },
+  };
+}
+
+/** Kill a child and everything it started, on either platform. */
+export async function killTree(
+  pid: number | undefined,
+  fallbackKill: () => void,
+): Promise<void> {
+  if (pid === undefined) {
+    fallbackKill();
+    return;
+  }
+  if (process.platform === "win32") {
+    await execa("taskkill", ["/pid", String(pid), "/T", "/F"], {
+      reject: false,
+      windowsHide: true,
+    });
+    return;
+  }
+  try {
+    // Negative pid = the whole process group (the child was spawned detached).
+    process.kill(-pid, "SIGTERM");
+  } catch {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+      // why: already gone — nothing left to kill.
+    }
+  }
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  try {
+    process.kill(-pid, "SIGKILL");
+  } catch {
+    fallbackKill();
+  }
+}

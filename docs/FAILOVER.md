@@ -10,8 +10,10 @@ fixtures — never against live accounts in CI.
 Three layers, evaluated in order. First match wins.
 
 **Layer A — structured signals (most reliable):**
-- Claude: final envelope with `is_error: true` and limit-related result text; abnormal
-  exit paired with limit text on stdout/stderr.
+- Claude: the **`rate_limit_event`** line of the stream (verified in 2.1.241) — a
+  `rate_limit_info.status` outside the healthy set means blocked, and `resetsAt` gives an
+  exact reset time for the hint. Plus: final envelope with `is_error: true` and
+  limit-related result text; abnormal exit paired with limit text on stdout/stderr.
 - Codex: `turn.failed` event — inspect its error payload.
 - Gemini: `error` object in the json envelope; HTTP-ish codes surfaced in messages
   (`429`, `RESOURCE_EXHAUSTED`).

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { createRequire } from "node:module";
 import { agentsCommand, doctorCommand } from "./commands/doctor.js";
+import { runCommand, type RunCommandOptions } from "./commands/run.js";
 import { messages } from "../ui/messages.js";
 import { theme } from "../ui/theme.js";
 
@@ -53,7 +54,9 @@ export function buildProgram(): Command {
     .option("--relay-on-error", "also relay on non-limit errors")
     .option("--quiet", "plain output, no spinner")
     .option("--verbose", "echo raw provider events")
-    .action(() => todo("run"));
+    .action(async (taskWords: string[], options: RunCommandOptions) => {
+      await runCommand(taskWords, options);
+    });
 
   program
     .command("continue")
