@@ -76,6 +76,8 @@ export const messages = {
 
   agentFailed: (agent: string, kind: string): string => `${agent} stopped: ${kind}`,
 
+  skippedAgent: (agent: string, reason: string): string => `${agent} skipped: ${reason}`,
+
   coolingDown: (agent: string, resetHint?: string): string =>
     `${agent} is cooling down${resetHint ? ` (${resetHint})` : ""} — trying the next agent`,
 
@@ -91,6 +93,18 @@ export const messages = {
   },
 
   handoffWritten: (file: string): string => `handoff written: ${file} (mirrored to .baton/)`,
+
+  configTitle: "BATON CONFIG (effective)",
+  configGetNeedsKey: "baton config get <key>   e.g. baton config get roles.architect",
+  configSetNeedsKeyValue: "baton config set <key> <value>   e.g. baton config set chain codex,claude",
+  configUnknownKey: (key: string): string => `no config value at "${key}"`,
+  configUnknownAction: (action: string): string =>
+    `unknown action "${action}" — use: baton config [get|set]`,
+
+  initTitle: "BATON INIT",
+  initWritten: (file: string): string => `wrote ${file}`,
+  initNext: (agents: string): string =>
+    `  run \`baton doctor\` to check ${agents}, then \`baton run "your task"\``,
 
   handoffEmpty:
     "  nothing has run yet — the briefing has the task and the project's verify commands only",

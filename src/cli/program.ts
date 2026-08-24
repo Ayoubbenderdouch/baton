@@ -1,7 +1,9 @@
 import { Command } from "commander";
 import { createRequire } from "node:module";
 import { agentsCommand, doctorCommand } from "./commands/doctor.js";
+import { configCommand } from "./commands/config.js";
 import { handoffCommand } from "./commands/handoff.js";
+import { initCommand } from "./commands/init.js";
 import { runCommand, type RunCommandOptions } from "./commands/run.js";
 import { messages } from "../ui/messages.js";
 import { theme } from "../ui/theme.js";
@@ -100,12 +102,23 @@ export function buildProgram(): Command {
     .argument("[key]", "dot path, e.g. roles.architect")
     .argument("[value]", "new value")
     .option("--global", "write to the global config instead of the project one")
-    .action(() => todo("config"));
+    .action(
+      async (
+        action: string | undefined,
+        key: string | undefined,
+        value: string | undefined,
+        options: { global?: boolean },
+      ) => {
+        await configCommand(action, key, value, options);
+      },
+    );
 
   program
     .command("init")
     .description("create .baton/ with a project config")
-    .action(() => todo("init"));
+    .action(async () => {
+      await initCommand();
+    });
 
   return program;
 }

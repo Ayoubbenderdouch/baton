@@ -75,10 +75,14 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
   (TESTING.md L8); ⏳ (pending: CI) for the 3-OS run.
 
 ## M6 — Router & config
-- [ ] zod-validated config: global + project merge + flag overrides, `config get/set`
-- [ ] Roles map, rules engine, availability filter, decision line in UI
-- [ ] `baton init`
-- DoD: table-driven router tests (≥15 cases incl. Arabic keywords example)
+- [x] zod-validated config: global + project merge + flag overrides, `config get/set`
+      (unknown keys warn with a did-you-mean; `roles`/`agents` merge key by key so
+      setting one role does not drop the others)
+- [x] Roles map, rules engine, availability filter, decision line in UI
+- [x] `baton init` — interactive on a TTY via node:readline (no new dependency),
+      silent defaults everywhere else
+- DoD: 25 table-driven router tests including the Arabic-keywords example and the
+  availability filter; router decisions verified live with `BATON_TEST_FAKE=1`
 
 ## M7 — Status
 - [ ] usage.json event log + pruning; `baton status` table + `--json`

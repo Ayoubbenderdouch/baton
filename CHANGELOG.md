@@ -7,6 +7,10 @@ All notable changes to Baton are documented here. The format follows
 
 ### Added
 
+- M6 router and config: deterministic routing (explicit flag → role → keyword/size rules
+  → chain head) with the decision printed in one line, and a zod-validated config layered
+  default → global → project → flags, editable with `baton config set roles.architect
+  codex`. `baton init` writes a project config.
 - M5 the relay: usage-limit detection (Claude's structured `rate_limit_event` first,
   then per-provider pattern tables extensible through `~/.baton/patterns.json`), a
   cooldown ledger in `~/.baton/usage.json`, and the failover engine that writes

@@ -1,8 +1,10 @@
 import { detectAll, getAdapter } from "../../adapters/registry.js";
+import { loadConfig, type BatonConfig } from "../../core/config.js";
 import { runTask, type TaskConfig } from "../../core/failover.js";
+import { routeTask } from "../../core/router.js";
 import { primePatterns } from "../../core/limit-detector.js";
 import { SessionStore } from "../../core/session-store.js";
-import { DEFAULT_COOLDOWN_MINUTES, UsageStore } from "../../core/usage-store.js";
+import { UsageStore } from "../../core/usage-store.js";
 import {
   AGENT_IDS,
   isAgentId,
@@ -68,43 +70,56 @@ export async function runCommand(
 
   const patternWarning = await primePatterns();
   const cwd = process.cwd();
+  const flagOverrides: Partial<BatonConfig> = {
+    ...(options.chain !== undefined ? { chain } : {}),
+    ...(options.auto === true ? { permissionLevel: "auto" as const } : {}),
+    ...(options.relayOnError === true ? { relayOnError: true } : {}),
+  };
+  const { config, warnings } = await loadConfig(cwd, flagOverrides);
   const usage = await UsageStore.load();
   const store = await SessionStore.load(cwd);
 
   renderer.task(task);
+  for (const warning of warnings) renderer.warn(warning);
   if (patternWarning !== undefined) renderer.warn(patternWarning);
   if (store.recovered) renderer.warn(messages.sessionRecovered);
 
-  // Detection is cached for the whole task: the relay asks about availability again.
+  // Detection is cached for the whole task; the relay re-checks cooldowns as it goes.
   const detected = new Map<AgentId, DetectResult>();
   for (const result of await detectAll()) detected.set(result.id, result);
   const detect = async (id: AgentId): Promise<DetectResult> =>
     detected.get(id) ?? getAdapter(id).detect();
 
-  // The router lands in M6; today it is the explicit flag, else the first available
-  // agent of the chain.
-  let startAgent: AgentId | undefined;
-  let reason = "chain head";
-  if (isAgentId(options.agent ?? "")) {
-    startAgent = options.agent as AgentId;
-    reason = "--agent";
-  } else {
-    for (const candidate of chain) {
-      const result = detected.get(candidate);
-      if (result?.verdict !== "ready") continue;
-      const cooling = usage.cooldown(candidate, DEFAULT_COOLDOWN_MINUTES, new Date());
-      if (cooling.cooling) {
-        renderer.note(messages.coolingDown(candidate, cooling.resetHint));
-        continue;
-      }
-      startAgent = candidate;
-      break;
+  const isAvailable = (agent: AgentId): { ok: boolean; reason: string } => {
+    const result = detected.get(agent);
+    if (result === undefined) return { ok: false, reason: "unknown agent" };
+    if (result.verdict === "not_installed") return { ok: false, reason: "not installed" };
+    if (result.verdict === "auth") return { ok: false, reason: "not signed in" };
+    if (result.verdict === "error") return { ok: false, reason: result.detail ?? "unavailable" };
+    const cooling = usage.cooldown(agent, config.cooldownMinutes, new Date());
+    if (cooling.cooling) {
+      return { ok: false, reason: `cooling down${cooling.resetHint ? ` (${cooling.resetHint})` : ""}` };
     }
+    return { ok: true, reason: "ready" };
+  };
+
+  const decision = routeTask(
+    {
+      task,
+      ...(options.agent !== undefined ? { agentFlag: options.agent } : {}),
+      ...(options.role !== undefined ? { role: options.role } : {}),
+    },
+    config,
+    isAvailable,
+  );
+  for (const skipped of decision.skipped) {
+    renderer.note(messages.skippedAgent(skipped.agent, skipped.reason));
   }
+  const startAgent = decision.agent;
 
   if (startAgent === undefined) {
-    renderer.fail(messages.noAgentAvailable, "baton doctor");
-    process.exitCode = EXIT.exhausted;
+    renderer.fail(decision.reason, "baton doctor");
+    process.exitCode = decision.reason.startsWith("unknown") ? EXIT.usage : EXIT.exhausted;
     return;
   }
 
@@ -120,21 +135,26 @@ export async function runCommand(
     return;
   }
 
+  const reason = decision.reason;
   renderer.routerNote(messages.routerDecision(startAgent, reason));
   if (options.unsafe === true) renderer.warn(messages.unsafeWarning(startAgent));
 
-  const permissionLevel: PermissionLevel = options.auto === true ? "auto" : "safe";
+  const permissionLevel: PermissionLevel = config.permissionLevel;
   const controller = new AbortController();
   const onSigint = (): void => controller.abort();
   process.once("SIGINT", onSigint);
 
-  const config: TaskConfig = {
-    chain,
-    maxRelays: DEFAULT_MAX_RELAYS,
-    cooldownMinutes: DEFAULT_COOLDOWN_MINUTES,
+  const taskConfig: TaskConfig = {
+    chain: config.chain,
+    maxRelays: config.maxRelays,
+    cooldownMinutes: config.cooldownMinutes,
     permissionLevel,
+    relayOnError: config.relayOnError,
+    timeoutMs: config.runTimeoutMs,
+    extraArgs: Object.fromEntries(
+      Object.entries(config.agents).map(([agent, value]) => [agent, value?.extraArgs ?? []]),
+    ),
     ...(options.unsafe !== undefined ? { unsafe: options.unsafe } : {}),
-    ...(options.relayOnError !== undefined ? { relayOnError: options.relayOnError } : {}),
     ...(options.verbose !== undefined ? { verbose: options.verbose } : {}),
   };
 
@@ -148,7 +168,7 @@ export async function runCommand(
       detect,
       now: () => new Date(),
       signal: controller.signal,
-    }, config);
+    }, taskConfig);
 
     const last = result.outcomes.at(-1);
     switch (result.status) {
