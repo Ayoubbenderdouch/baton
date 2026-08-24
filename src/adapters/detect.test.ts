@@ -2,8 +2,11 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { detectAll } from "./registry.js";
-import { looksLikeAuthProblem } from "./shared.js";
+import { classifyProbe, looksLikeAuthProblem } from "./shared.js";
+import { codexSpec } from "./codex/spec.js";
+import { geminiSpec } from "./gemini/spec.js";
 
 const isWindows = process.platform === "win32";
 const shimDir = mkdtempSync(path.join(tmpdir(), "baton-shims-"));
@@ -30,24 +33,6 @@ writeShim("codex", "codex-cli 0.147.0");
 writeShim("gemini", "0.56.0");
 
 
-/** A shim that answers `--version` but fails the actual probe run, like a real gate. */
-function writeGatedShim(name: string, version: string, failure: string, code: number): void {
-  if (isWindows) {
-    writeFileSync(
-      path.join(shimDir, `${name}.cmd`),
-      `@echo off\r\nif "%1"=="--version" (echo ${version} & exit /b 0)\r\necho ${failure} 1>&2\r\nexit /b ${code}\r\n`,
-      "utf8",
-    );
-    return;
-  }
-  const file = path.join(shimDir, name);
-  writeFileSync(
-    file,
-    `#!/bin/sh\nif [ "$1" = "--version" ]; then echo "${version}"; exit 0; fi\necho "${failure}" 1>&2\nexit ${code}\n`,
-    "utf8",
-  );
-  chmodSync(file, 0o755);
-}
 
 afterEach(() => {
   process.env.PATH = originalPath;
@@ -107,29 +92,52 @@ describe("auth pattern matching", () => {
 });
 
 describe("the auth probe distinguishes a gate from a login problem", () => {
-  it("explains a provider gate instead of reporting the verdict as unclear", async () => {
-    const { detectProvider } = await import("./shared.js");
-    const { geminiSpec } = await import("./gemini/spec.js");
-    process.env.PATH = shimDir;
-    // Refuses the way gemini refuses an untrusted folder (exit 55) but still answers
-    // --version, exactly like the real binary does.
-    writeGatedShim("gemini", "0.56.0", "Gemini CLI is not running in a trusted directory", 55);
-    const result = await detectProvider(geminiSpec, { probeAuth: true });
+  const base = {
+    id: "gemini" as const,
+    installed: true,
+    version: "0.56.0",
+    auth: "not_probed" as const,
+    verdict: "ready" as const,
+  };
+
+  it("explains a provider gate instead of reporting the verdict as unclear", () => {
+    // The real refusal, byte for byte from fixtures/gemini/trust-error.txt.
+    const output = readFileSync(
+      path.join(process.cwd(), "fixtures", "gemini", "trust-error.txt"),
+      "utf8",
+    );
+    const result = classifyProbe(geminiSpec, base, output, false, false);
     expect(result.verdict).toBe("ready");
     expect(result.auth).toBe("unknown");
     expect(result.detail).toContain("cannot verify from this folder");
     expect(result.detail).toContain("--skip-trust");
-    writeShim("gemini", "0.56.0");
   });
 
-  it("still calls a real login failure a login failure", async () => {
-    const { detectProvider } = await import("./shared.js");
-    const { codexSpec } = await import("./codex/spec.js");
-    process.env.PATH = shimDir;
-    writeGatedShim("codex", "codex-cli 0.147.0", "Not logged in. Please log in and retry.", 1);
-    const result = await detectProvider(codexSpec, { probeAuth: true });
+  it("explains codex's git-repo gate the same way", () => {
+    const output = readFileSync(
+      path.join(process.cwd(), "fixtures", "codex", "git-repo-required.txt"),
+      "utf8",
+    );
+    const result = classifyProbe(codexSpec, { ...base, id: "codex" }, output, false, false);
+    expect(result.detail).toContain("--skip-git-repo-check");
+  });
+
+  it("still calls a real login failure a login failure", () => {
+    const output = readFileSync(
+      path.join(process.cwd(), "fixtures", "codex", "auth.txt"),
+      "utf8",
+    );
+    const result = classifyProbe(codexSpec, { ...base, id: "codex" }, output, false, false);
     expect(result.verdict).toBe("auth");
     expect(result.remedy).toBe("codex login");
-    writeShim("codex", "codex-cli 0.147.0");
+  });
+
+  it("reports a successful probe as signed in", () => {
+    expect(classifyProbe(geminiSpec, base, "", true, false).auth).toBe("ok");
+  });
+
+  it("says so when the probe simply timed out", () => {
+    const result = classifyProbe(geminiSpec, base, "", false, true);
+    expect(result.detail).toBe("auth probe timed out");
   });
 });

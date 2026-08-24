@@ -26,7 +26,7 @@ suites pass in CI on ubuntu, macOS **and** Windows × Node 22/24.
 | M8 Polish & release | ✅ | `npm run smoke` · `npm publish --dry-run` · docs/CONFIG.md generated from the zod schema and guarded by a test · docs/README.ar.md · `last-error.log` tested |
 | M8 Ink interactive shell | ⏭️ | Deliberately skipped — docs/MILESTONES.md marks it optional and says not to delay the release for it |
 
-**Suites:** `npm test` → **231 tests, 26 files, all passing**. `npm run test:ci` (CI colour
+**Suites:** `npm test` → **232 tests, 26 files, all passing**. `npm run test:ci` (CI colour
 settings) → same. Coverage gate from docs/TESTING.md, measured per glob:
 `src/core/**` **94.44 %** lines · `src/adapters/**` **92.22 %** · adapter parsers **93.66 %**
 (gate: 85 %).

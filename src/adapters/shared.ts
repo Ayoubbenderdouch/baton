@@ -121,21 +121,35 @@ export async function detectProvider(
     timeoutMs: options.timeoutMs ?? PROBE_TIMEOUT_MS,
   });
   const probeOutput = `${probe.stdout}\n${probe.stderr}`;
-  if (probe.ok) return { ...base, auth: "ok" };
-  if (looksLikeAuthProblem(probeOutput)) {
+  return classifyProbe(spec, base, probeOutput, probe.ok, probe.timedOut);
+}
+
+/**
+ * What a finished auth probe means. Pure, so it is tested against captured provider
+ * output on every platform instead of through a shell shim that only exists on one.
+ */
+export function classifyProbe(
+  spec: ProviderSpec,
+  base: DetectResult,
+  output: string,
+  ok: boolean,
+  timedOut: boolean,
+): DetectResult {
+  if (ok) return { ...base, auth: "ok" };
+  if (looksLikeAuthProblem(output)) {
     return { ...base, auth: "signed_out", verdict: "auth", remedy: spec.loginCommand };
   }
   // The probe runs a real agent in the current folder, so it can be blocked by that
   // provider's own gate (an untrusted folder, a missing git repo) rather than by a
   // login problem. Say which, instead of shrugging with "unclear".
-  const gate = gateRemedy(probeOutput);
+  const gate = gateRemedy(output);
   if (gate !== undefined) {
     return { ...base, auth: "unknown", detail: `cannot verify from this folder — ${gate}` };
   }
   return {
     ...base,
     auth: "unknown",
-    detail: probe.timedOut ? "auth probe timed out" : "auth probe failed (not a login error)",
+    detail: timedOut ? "auth probe timed out" : "auth probe failed (not a login error)",
   };
 }
 
