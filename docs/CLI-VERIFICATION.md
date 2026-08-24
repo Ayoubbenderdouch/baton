@@ -8,9 +8,9 @@ on which version, and what differed from `docs/ADAPTERS.md` as shipped in the bu
 
 | CLI | Binary | Version |
 |---|---|---|
-| Claude Code | `/Users/macbook/.local/bin/claude` | `2.1.241` |
-| Codex CLI | `/Users/macbook/.local/bin/codex` | `codex-cli 0.147.0` |
-| Gemini CLI | `/Users/macbook/.local/bin/gemini` | `0.56.0` |
+| Claude Code | `~/.local/bin/claude` | `2.1.241` |
+| Codex CLI | `~/.local/bin/codex` | `codex-cli 0.147.0` |
+| Gemini CLI | `~/.local/bin/gemini` | `0.56.0` |
 
 ### Deltas found vs. the kit's ADAPTERS.md
 
