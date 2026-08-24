@@ -3,14 +3,29 @@
 One milestone = one or more commits + green CI on ubuntu/macos/windows + its checklist
 ticked in this file (edit the boxes as you go). Never start Mn+1 with Mn red.
 
+## Verification status legend
+
+The build happened on a macOS machine with no GitHub remote yet (creating the repo is
+the maintainer's call — see README-KIT). So:
+
+- `[x]` = implemented **and** verified locally (lint + typecheck + vitest + build, and
+  where relevant the pack smoke on macOS).
+- `⏳ (pending: CI)` = the 3-OS matrix has never run; it will on the first push.
+- `⏳ (pending: Windows)` = needs a real Windows machine or windows-latest CI.
+
+Nothing here claims a green windows-latest run that did not happen. The OS-sensitive
+logic (PATHEXT resolution, CRLF stream splitting, atomic-rename fallback, Unicode) is
+covered by tests that run on macOS too, so the risk carried into CI is small but real.
+
 ## M0 — Scaffold
-- [ ] `npm init` → name `baton-ai`, bin `baton`, `"type": "module"`, Node ≥20 engines
-- [ ] TypeScript strict, ESM build (tsup or tsc), eslint + prettier, vitest wired
-- [ ] `src/index.ts` with commander skeleton: all commands registered, printing "not
+- [x] `npm init` → name `baton-ai`, bin `baton`, `"type": "module"`, Node ≥20 engines
+- [x] TypeScript strict, ESM build (tsup or tsc), eslint + prettier, vitest wired
+- [x] `src/index.ts` with commander skeleton: all commands registered, printing "not
       implemented yet" except `--version`
-- [ ] CI matrix per CROSS-PLATFORM.md incl. pack-smoke job
-- [ ] LICENSE (MIT), README stub with the non-affiliation disclaimer
-- DoD: `npx baton --version` works from a packed tarball on all 3 OSes in CI
+- [x] CI matrix per CROSS-PLATFORM.md incl. pack-smoke job — written; ⏳ (pending: CI) run
+- [x] LICENSE (MIT), README stub with the non-affiliation disclaimer
+- DoD: `npx baton --version` works from a packed tarball — verified on macOS via
+  `npm run smoke`; ⏳ (pending: CI) for ubuntu/windows
 
 ## M1 — Detection & doctor
 - [ ] `resolveBin()` with PATHEXT handling + unit tests (fake shims fixture)
