@@ -100,3 +100,16 @@ export function routeTask(
 
   return { agent: undefined, reason: "no agent available", skipped };
 }
+
+/**
+ * ROUTING.md: an explicit `--agent` is always obeyed "even if cooling down; warn but
+ * obey". This is the warn half — the reason the agent would otherwise have been skipped.
+ */
+export function forcedAgentWarning(
+  decision: RouteDecision,
+  isAvailable: Availability,
+): string | undefined {
+  if (decision.reason !== "--agent" || decision.agent === undefined) return undefined;
+  const availability = isAvailable(decision.agent);
+  return availability.ok ? undefined : availability.reason;
+}

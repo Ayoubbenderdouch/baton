@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, type BatonConfig } from "./config.js";
-import { routeTask } from "./router.js";
+import { forcedAgentWarning, routeTask } from "./router.js";
 import type { AgentId } from "./types.js";
 
 const allReady = (): { ok: boolean; reason: string } => ({ ok: true, reason: "ready" });
@@ -204,5 +204,25 @@ describe("availability filter", () => {
     const decision = routeTask({ task: "x", agentFlag: "kimi" }, config, allReady);
     expect(decision.agent).toBeUndefined();
     expect(decision.reason).toContain('unknown agent "kimi"');
+  });
+});
+
+describe("forcedAgentWarning", () => {
+  it("warns when an explicitly forced agent is cooling down, and still runs it", () => {
+    const isAvailable = (agent: AgentId): { ok: boolean; reason: string } =>
+      agent === "claude" ? { ok: false, reason: "cooling down (resets 19:00)" } : { ok: true, reason: "ready" };
+    const decision = routeTask({ task: "x", agentFlag: "claude" }, config, isAvailable);
+    expect(decision.agent).toBe("claude");
+    expect(forcedAgentWarning(decision, isAvailable)).toBe("cooling down (resets 19:00)");
+  });
+
+  it("says nothing when the forced agent is fine", () => {
+    const decision = routeTask({ task: "x", agentFlag: "codex" }, config, allReady);
+    expect(forcedAgentWarning(decision, allReady)).toBeUndefined();
+  });
+
+  it("says nothing when the agent was not forced", () => {
+    const decision = routeTask({ task: "debug this" }, config, allReady);
+    expect(forcedAgentWarning(decision, allReady)).toBeUndefined();
   });
 });

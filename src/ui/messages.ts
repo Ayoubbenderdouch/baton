@@ -73,6 +73,9 @@ export const messages = {
 
   agentFailed: (agent: string, kind: string): string => `${agent} stopped: ${kind}`,
 
+  forcedAgentAnyway: (agent: string, reason: string): string =>
+    `${agent} is ${reason} — running it anyway because you asked for it with --agent`,
+
   skippedAgent: (agent: string, reason: string): string => `${agent} skipped: ${reason}`,
 
   coolingDown: (agent: string, resetHint?: string): string =>

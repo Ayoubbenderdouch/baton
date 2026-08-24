@@ -1,7 +1,7 @@
 import { detectAll, getAdapter } from "../../adapters/registry.js";
 import { loadConfig, type BatonConfig } from "../../core/config.js";
 import { runTask, type TaskConfig } from "../../core/failover.js";
-import { routeTask } from "../../core/router.js";
+import { forcedAgentWarning, routeTask } from "../../core/router.js";
 import { primePatterns } from "../../core/limit-detector.js";
 import { SessionStore } from "../../core/session-store.js";
 import { UsageStore } from "../../core/usage-store.js";
@@ -117,6 +117,11 @@ export async function runCommand(
     renderer.note(messages.skippedAgent(skipped.agent, skipped.reason));
   }
   const startAgent = decision.agent;
+  // An explicit --agent is obeyed even while cooling down, but never silently.
+  const forcedWarning = forcedAgentWarning(decision, isAvailable);
+  if (forcedWarning !== undefined && startAgent !== undefined) {
+    renderer.warn(messages.forcedAgentAnyway(startAgent, forcedWarning));
+  }
 
   if (startAgent === undefined) {
     renderer.fail(decision.reason, "baton doctor");
