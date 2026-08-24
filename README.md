@@ -188,9 +188,10 @@ and the packaging smoke test run a complete task with no account and no network.
   their documented wording, not from a captured limit — nobody exhausted an account to
   make a fixture. If Baton ever misses a limit, run with `--verbose`, and add the wording
   to `~/.baton/patterns.json` (it extends the built-ins, no update needed).
-- **Windows is supported but not yet CI-verified.** The Windows-sensitive logic (PATHEXT
-  resolution, CRLF splitting, atomic rename, tree kill, Unicode) has tests that run on
-  every platform, but the 3-OS matrix has not been executed yet.
+- **Windows is CI-green but has never been driven by a human.** The matrix (ubuntu,
+  macos, windows × Node 22/24) passes, including installing the tarball and running a
+  whole task there. What is still missing is one live session on a real Windows machine
+  with logged-in provider CLIs.
 - **Gemini is stateless.** Its `--resume` takes an index, not a session id, so continuity
   for Gemini always goes through `HANDOFF.md`.
 - **One agent at a time.** Baton is a relay, not a swarm. No parallel execution in v1.

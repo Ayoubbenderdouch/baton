@@ -64,6 +64,7 @@ Legend: ✅ verified · ⏳ pending (no machine of that OS available yet).
 | L10 | M8 | Whole flow from the tarball: run → forced limit → relay → HANDOFF.md → status | ✅ 2026-08-24 | ⏳ |
 | L11 | M8 | `baton continue` resumes the previous agent's own session | ✅ 2026-08-24 (claude resume) | ⏳ |
 
-Windows rows stay ⏳ until someone runs them on a real Windows machine; the automated
-Windows coverage is the CI matrix plus the platform-parameterised unit tests
-(`resolveBin` against `.cmd` shims, CRLF stream splitting, atomic-rename fallback).
+Windows rows stay ⏳ until someone runs them on a real Windows machine **with logged-in
+provider CLIs** — that is the only thing CI cannot do. Everything else is covered:
+since 2026-08-24 the matrix is green on ubuntu/macos/windows × Node 22/24, including the
+pack-smoke job that installs the tarball and runs a whole task with fake adapters.

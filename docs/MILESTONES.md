@@ -5,36 +5,33 @@ ticked in this file (edit the boxes as you go). Never start Mn+1 with Mn red.
 
 ## Verification status legend
 
-The build happened on a macOS machine with no GitHub remote yet (creating the repo is
-the maintainer's call — see README-KIT). So:
+- `[x]` = implemented, verified locally, **and** green in CI.
+- `⏳ (pending: Windows)` = needs a real Windows machine with logged-in provider CLIs;
+  the automated Windows coverage (CI) is green, the human walk-through is not done.
 
-- `[x]` = implemented **and** verified locally (lint + typecheck + vitest + build, and
-  where relevant the pack smoke on macOS).
-- `⏳ (pending: CI)` = the 3-OS matrix has never run; it will on the first push.
-- `⏳ (pending: Windows)` = needs a real Windows machine or windows-latest CI.
-
-Nothing here claims a green windows-latest run that did not happen. The OS-sensitive
-logic (PATHEXT resolution, CRLF stream splitting, atomic-rename fallback, Unicode) is
-covered by tests that run on macOS too, so the risk carried into CI is small but real.
+**CI status: green on ubuntu-latest, macos-latest and windows-latest × Node 22 and 24,
+plus the pack-smoke job on all three, since 2026-08-24.** The first run was red and found
+three real bugs (execa 10 needs Node 22; POSIX file-mode tests cannot run on Windows; a
+CRLF checkout broke the generated-docs comparison) — all fixed in `fix(ci): require Node
+22, and make two tests survive a Windows runner`.
 
 ## M0 — Scaffold
 - [x] `npm init` → name `baton-ai`, bin `baton`, `"type": "module"`, Node ≥20 engines
 - [x] TypeScript strict, ESM build (tsup or tsc), eslint + prettier, vitest wired
 - [x] `src/index.ts` with commander skeleton: all commands registered, printing "not
       implemented yet" except `--version`
-- [x] CI matrix per CROSS-PLATFORM.md incl. pack-smoke job — written; ⏳ (pending: CI) run
+- [x] CI matrix per CROSS-PLATFORM.md incl. pack-smoke job — green on all three OSes
 - [x] LICENSE (MIT), README stub with the non-affiliation disclaimer
-- DoD: `npx baton --version` works from a packed tarball — verified on macOS via
-  `npm run smoke`; ⏳ (pending: CI) for ubuntu/windows
+- DoD: `npx baton --version` works from a packed tarball — green in the pack-smoke job on
+  ubuntu, macos and windows
 
 ## M1 — Detection & doctor
 - [x] `resolveBin()` with PATHEXT handling + unit tests (fake shims fixture)
 - [x] Adapter registry + `detect()` for claude/codex/gemini (version + auth probe;
       the probe is opt-in via `baton doctor --probe` because it costs one request)
 - [x] `baton doctor` and `baton agents` per UX-SPEC
-- DoD: fake-shim test proves detection (runs on every OS; Windows semantics covered by
-  platform-parameterised `resolveBin` tests) ⏳ (pending: CI) for the windows-latest run;
-  real-machine manual check documented in TESTING.md (L1–L3 ✅ macOS, ⏳ Windows)
+- DoD: fake-shim test proves detection on windows-latest in CI (green); real-machine
+  manual check documented in TESTING.md (L1–L3 ✅ macOS, ⏳ Windows)
 
 ## M2 — Claude adapter + run pipeline
 - [x] Event model (`AgentEvent`) + renderer (TTY spinner path + plain `baton:` path)
@@ -43,7 +40,8 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
 - [x] `baton run "task" --agent claude` end-to-end
 - DoD: fixture-driven parser tests + an offline spawn→parse→event integration test
   against a fake CLI (covers CRLF, ENOENT, auth-vs-crash, cancel); live run verified on
-  macOS (TESTING.md L4) and Ctrl+C leaves zero orphans (L5); ⏳ (pending: Windows)
+  macOS (TESTING.md L4) and Ctrl+C leaves zero orphans (L5); green on windows-latest in
+  CI; ⏳ (pending: Windows) for the live run with a real account
 
 ## M3 — Codex & Gemini adapters
 - [x] CodexAdapter (`codex exec --json`) with usage extraction from `turn.completed`
@@ -51,16 +49,15 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
       `--unsafe`), "never ask" preamble
 - [x] Fixtures: ok/limit/auth/crash per provider (+ the two real safety-gate refusals);
       provenance table in `fixtures/README.md` — limit/auth are synthesized, and say so
-- DoD: `baton run --agent codex|gemini` live-verified on macOS (TESTING.md L6, L7);
-  ⏳ (pending: Windows)
+- DoD: `baton run --agent codex|gemini` live-verified on macOS (TESTING.md L6, L7),
+  fixture-verified on windows-latest in CI; ⏳ (pending: Windows) for a live run there
 
 ## M4 — Handoff
 - [x] HandoffWriter per FAILOVER.md template; deterministic; snapshot tests
 - [x] Rolling-summary compression (pure string logic + tests)
 - [x] `baton handoff` command; refresh after every done turn
-- DoD: snapshot test with Arabic content passes locally, and `RELAY_PREAMBLE` is
-  compared against docs/FAILOVER.md by a test so the two cannot drift;
-  ⏳ (pending: CI) for the windows-latest run
+- DoD: the Arabic-content snapshot passes on windows-latest in CI, and `RELAY_PREAMBLE`
+  is compared against docs/FAILOVER.md by a test so the two cannot drift
 
 ## M5 — Limit detection & the relay ⭐
 - [x] LimitDetector layers A/B/C + patterns.json extension mechanism
@@ -72,7 +69,7 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
   an already-limited agent, cooldown respected, undetected agents skipped, exhausted
   reporting, relay-on-error opt-in). Verified live on macOS with
   `BATON_TEST_FORCE_LIMIT=claude` → relayed to codex, which finished the task
-  (TESTING.md L8); ⏳ (pending: CI) for the 3-OS run.
+  (TESTING.md L8), and green on all three OSes in CI.
 
 ## M6 — Router & config
 - [x] zod-validated config: global + project merge + flag overrides, `config get/set`
@@ -107,8 +104,9 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
       package.json); CHANGELOG.md written in user language; v0.1.0 tag prepared locally
       (publishing stays manual, the maintainer's call)
 - DoD: verified locally end to end from the packed tarball — install → `baton doctor` →
-  `baton run` → forced limit → relay announcement → `HANDOFF.md` → `baton status`.
-  ⏳ (pending: Windows) for the same walk-through on a real Windows machine.
+  `baton run` → forced limit → relay announcement → `HANDOFF.md` → `baton status`, and
+  the same flow green in the windows-latest pack-smoke job.
+  ⏳ (pending: Windows) for a human walk-through with real accounts.
 
 ## Explicitly out of scope for v0.1
 Parallel agents, LLM routing, plugins/marketplace, provider auth handling of any kind,
