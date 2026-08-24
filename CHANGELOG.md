@@ -7,6 +7,12 @@ All notable changes to Baton are documented here. The format follows
 
 ### Added
 
+- M5 the relay: usage-limit detection (Claude's structured `rate_limit_event` first,
+  then per-provider pattern tables extensible through `~/.baton/patterns.json`), a
+  cooldown ledger in `~/.baton/usage.json`, and the failover engine that writes
+  HANDOFF.md and hands the same task to the next agent in the chain. `--chain` overrides
+  the order, `--relay-on-error` opts into relaying on non-limit failures, and
+  `BATON_TEST_FORCE_LIMIT=<agent>` exercises the whole path without spending quota.
 - M4 handoff: `HANDOFF.md` generated from the session store and live git state, written
   to the project root and mirrored into `.baton/`, refreshed after every turn. Rolling
   summary compression is pure string logic (no LLM — the account that would run it may be

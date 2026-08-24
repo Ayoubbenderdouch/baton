@@ -63,13 +63,16 @@ covered by tests that run on macOS too, so the risk carried into CI is small but
   ⏳ (pending: CI) for the windows-latest run
 
 ## M5 — Limit detection & the relay ⭐
-- [ ] LimitDetector layers A/B/C + patterns.json extension mechanism
-- [ ] Cooldown ledger
-- [ ] FailoverEngine relay loop (maxRelays, loop protection, chain filtering)
-- [ ] `BATON_TEST_FORCE_LIMIT=<agent>` env hook so the relay is testable without
-      burning real quotas (adapter emits fixture limit when set) — test-only, documented
-- DoD: integration test: run → forced limit on claude → relay to codex fixture →
-  HANDOFF injected → done. Green on all OSes.
+- [x] LimitDetector layers A/B/C + patterns.json extension mechanism
+- [x] Cooldown ledger (`~/.baton/usage.json`, the schema USAGE-TRACKING.md specifies)
+- [x] FailoverEngine relay loop (maxRelays, loop protection, chain filtering)
+- [x] `BATON_TEST_FORCE_LIMIT=<agent>` env hook — test-only, documented in the README
+- DoD: integration tests cover every relay invariant by name (preamble handed over,
+  HANDOFF written before the next spawn, partial turn persisted, maxRelays, no relay to
+  an already-limited agent, cooldown respected, undetected agents skipped, exhausted
+  reporting, relay-on-error opt-in). Verified live on macOS with
+  `BATON_TEST_FORCE_LIMIT=claude` → relayed to codex, which finished the task
+  (TESTING.md L8); ⏳ (pending: CI) for the 3-OS run.
 
 ## M6 — Router & config
 - [ ] zod-validated config: global + project merge + flag overrides, `config get/set`

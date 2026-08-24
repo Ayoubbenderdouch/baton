@@ -1,4 +1,5 @@
 import { AsyncQueue } from "../core/async-queue.js";
+import { activePatternTable, classifyFailureOutput } from "../core/limit-detector.js";
 import { resolveBin } from "../core/resolve-bin.js";
 import { parseVersion, runOnce, spawnStreaming } from "../core/spawn.js";
 import { toLines } from "../core/stream.js";
@@ -182,11 +183,14 @@ export function gateRemedy(output: string): string | undefined {
   return GATE_REMEDIES.find((entry) => entry.pattern.test(output))?.remedy;
 }
 
+export function firstLineOf(output: string): string {
+  return output.trim().split(/\r?\n/)[0] ?? output.trim();
+}
+
 /** Turn a provider failure into a kind plus a first line the user can act on. */
 export function explainFailure(output: string): { kind: "auth" | "crash"; raw: string } {
   const remedy = gateRemedy(output);
-  const firstLine = output.trim().split(/\r?\n/)[0] ?? output.trim();
-  if (remedy !== undefined) return { kind: "crash", raw: `${remedy}\n${firstLine}` };
+  if (remedy !== undefined) return { kind: "crash", raw: `${remedy}\n${firstLineOf(output)}` };
   return { kind: classifyFailure(output), raw: output.trim() };
 }
 
@@ -214,7 +218,35 @@ export interface ProviderRunConfig {
  * Nothing provider-specific lives here — the differences are the invocation and the
  * two pure parse functions each adapter passes in.
  */
+/**
+ * Test-only hook (docs/MILESTONES.md M5): `BATON_TEST_FORCE_LIMIT=claude,codex` makes
+ * those adapters report a usage limit without spawning anything, so the relay can be
+ * exercised — in tests and by hand — without burning real quota.
+ */
+export function forcedLimitAgents(): string[] {
+  return (process.env.BATON_TEST_FORCE_LIMIT ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== "");
+}
+
+function forcedLimitHandle(id: AgentId): RunHandle {
+  const queue = new AsyncQueue<AgentEvent>();
+  queue.push({ type: "start" });
+  queue.push({ type: "text", text: `(${id}: forced limit for testing, nothing was run)` });
+  queue.push({
+    type: "limit",
+    raw: `BATON_TEST_FORCE_LIMIT=${id} — simulated usage limit`,
+    resetHint: "resets in ~2h (simulated)",
+  });
+  queue.push({ type: "done", ok: false, resultText: "" });
+  queue.close();
+  return { events: queue, cancel: async () => undefined };
+}
+
 export function runProvider(config: ProviderRunConfig, request: RunRequest): RunHandle {
+  if (forcedLimitAgents().includes(config.id)) return forcedLimitHandle(config.id);
+
   const queue = new AsyncQueue<AgentEvent>();
   const binPath = resolveBin(config.binName);
 
@@ -243,18 +275,59 @@ export function runProvider(config: ProviderRunConfig, request: RunRequest): Run
   let lastText = "";
   let stderrTail = "";
 
+  let lastFailureRaw: string | undefined;
+
+  /**
+   * One place decides what a failure means: limit (relay-eligible), auth, or crash.
+   * Providers that report the same failure twice (codex sends a top-level `error` and a
+   * `turn.failed` with the same payload) must announce a relay once, so identical
+   * failures are pushed only once.
+   */
+  const pushFailure = (text: string): void => {
+    const gate = gateRemedy(text);
+    const classification = classifyFailureOutput(config.id, text, {
+      table: activePatternTable(),
+    });
+    const raw = gate !== undefined ? `${gate}\n${firstLineOf(text)}` : classification.raw;
+    if (raw === lastFailureRaw) return;
+    lastFailureRaw = raw;
+
+    if (classification.kind === "limit" && gate === undefined) {
+      // A run hits at most one limit: providers often report it twice (a streamed error
+      // line and again in the final envelope), and the relay must be announced once.
+      if (sawLimit) return;
+      sawLimit = true;
+      queue.push({
+        type: "limit",
+        raw,
+        ...(classification.resetHint !== undefined
+          ? { resetHint: classification.resetHint }
+          : {}),
+      });
+      return;
+    }
+    queue.push({
+      type: "error",
+      kind: classification.kind === "limit" ? "crash" : classification.kind,
+      raw,
+    });
+  };
+
   const forward = (events: AgentEvent[]): void => {
     for (const event of events) {
       if (event.type === "start" && event.sessionRef !== undefined) sessionRef = event.sessionRef;
       if (event.type === "text") lastText = event.text;
-      if (event.type === "limit") sawLimit = true;
+      if (event.type === "limit") {
+        if (sawLimit) continue;
+        sawLimit = true;
+        lastFailureRaw = event.raw;
+      }
 
       if (event.type === "error" && event.kind === "unknown") {
         // Parsers report a provider-signalled failure without judging it; the judging
         // happens here, in one place, so every adapter behaves identically.
         sawError = true;
-        const explained = explainFailure(`${event.raw}\n${stderrTail}`);
-        queue.push({ type: "error", kind: explained.kind, raw: explained.raw });
+        pushFailure(`${event.raw}\n${stderrTail}`);
         continue;
       }
       if (event.type === "error") sawError = true;
@@ -265,10 +338,11 @@ export function runProvider(config: ProviderRunConfig, request: RunRequest): Run
         // Providers that stream text separately from the final envelope leave
         // resultText empty — fill it with what the agent actually last said.
         const resultText = event.resultText !== "" ? event.resultText : lastText;
+        // The provider's own envelope decides success: gemini can emit a transient
+        // error line and still finish with status "success".
         queue.push({
           ...event,
           resultText,
-          ok: event.ok && !sawError,
           ...(event.sessionRef === undefined && sessionRef !== undefined ? { sessionRef } : {}),
         });
         continue;
@@ -317,8 +391,7 @@ export function runProvider(config: ProviderRunConfig, request: RunRequest): Run
     if (result.timedOut) {
       queue.push({ type: "error", kind: "crash", raw: "the agent CLI hit Baton's run timeout" });
     } else if (!sawError) {
-      const explained = explainFailure(stderrTail.trim() !== "" ? stderrTail : combined);
-      queue.push({ type: "error", kind: explained.kind, raw: explained.raw });
+      pushFailure(stderrTail.trim() !== "" ? stderrTail : combined);
     }
     queue.push({ type: "done", ok: false, resultText: lastText, ...(sessionRef ? { sessionRef } : {}) });
     queue.close();

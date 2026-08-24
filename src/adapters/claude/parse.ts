@@ -114,10 +114,13 @@ export function parseClaudeLine(line: string): AgentEvent[] {
       const info = parsed.rate_limit_info;
       if (!isBlockedRateLimitStatus(info?.status)) return [];
       const hint = formatResetHint(info?.resetsAt);
+      // The epoch travels inside `raw` so the cooldown ledger can use the exact time
+      // while the AgentEvent contract in ARCHITECTURE.md stays as specified.
+      const epoch = info?.resetsAt !== undefined ? ` resetsAt=${info.resetsAt}` : "";
       return [
         {
           type: "limit",
-          raw: `rate_limit_event: ${info?.status ?? "unknown"} (${info?.rateLimitType ?? "unknown window"})`,
+          raw: `rate_limit_event: ${info?.status ?? "unknown"} (${info?.rateLimitType ?? "unknown window"})${epoch}`,
           ...(hint ? { resetHint: hint } : {}),
         },
       ];

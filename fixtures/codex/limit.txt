@@ -1,0 +1,4 @@
+You've hit your usage limit. Try again in 3 hours 12 minutes.
+{"type":"error","status":429,"error":{"type":"rate_limit_error","message":"Rate limit reached for this account."}}
+Too many requests — slow down and retry later.
+You have exceeded your quota for this billing period.

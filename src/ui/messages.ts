@@ -76,6 +76,20 @@ export const messages = {
 
   agentFailed: (agent: string, kind: string): string => `${agent} stopped: ${kind}`,
 
+  coolingDown: (agent: string, resetHint?: string): string =>
+    `${agent} is cooling down${resetHint ? ` (${resetHint})` : ""} — trying the next agent`,
+
+  allAgentsExhausted:
+    "every agent in the chain is out of reach right now — nothing was lost, HANDOFF.md is written",
+
+  blockedAgent: (agent: string, reason: string, until?: Date): string => {
+    const when =
+      until === undefined
+        ? ""
+        : ` until ${until.toISOString().slice(11, 16)} UTC`;
+    return `${agent}: ${reason}${when}`;
+  },
+
   handoffWritten: (file: string): string => `handoff written: ${file} (mirrored to .baton/)`,
 
   handoffEmpty:

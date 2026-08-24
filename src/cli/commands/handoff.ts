@@ -4,8 +4,7 @@ import { SessionStore } from "../../core/session-store.js";
 import { messages } from "../../ui/messages.js";
 import { theme } from "../../ui/theme.js";
 import { EXIT } from "../exit-codes.js";
-
-export const DEFAULT_MAX_RELAYS = 2;
+import { DEFAULT_MAX_RELAYS } from "./run.js";
 
 export async function handoffCommand(): Promise<void> {
   const cwd = process.cwd();

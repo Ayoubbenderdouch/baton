@@ -1,1 +1,4 @@
 Claude usage limit reached. Your limit will reset at 7pm (Europe/Berlin).
+You've reached your 5-hour limit. Try again after 7pm.
+You've reached your weekly limit for this model.
+API rate limit exceeded. Please try again later.

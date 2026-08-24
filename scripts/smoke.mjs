@@ -107,6 +107,24 @@ try {
     );
   }
   process.stdout.write(`smoke: baton doctor ok\n${doctor.stdout}`);
+
+  // A real run through the whole pipeline, with fake adapters: no provider CLI, no
+  // account, no network (docs/TESTING.md layer 3).
+  const runHome = join(workdir, "home");
+  const runProject = join(workdir, "project");
+  mkdirSync(runProject, { recursive: true });
+  const run = spawnSync(process.execPath, [entry, "run", "smoke task", "--quiet"], {
+    cwd: runProject,
+    encoding: "utf8",
+    env: { ...process.env, BATON_TEST_FAKE: "1", BATON_HOME: runHome },
+  });
+  if (run.status !== 0 || !run.stdout.includes("done")) {
+    fail("baton run with BATON_TEST_FAKE=1 did not finish", `${run.stdout}${run.stderr}`);
+  }
+  if (!existsSync(join(runProject, "HANDOFF.md"))) {
+    fail("baton run did not write HANDOFF.md");
+  }
+  process.stdout.write(`smoke: baton run ok\n${run.stdout}`);
   process.stdout.write("smoke: PASS\n");
 } finally {
   rmSync(workdir, { recursive: true, force: true });

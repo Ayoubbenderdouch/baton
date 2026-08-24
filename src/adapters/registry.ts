@@ -1,6 +1,7 @@
 import type { AgentAdapter, AgentId, DetectOptions, DetectResult } from "../core/types.js";
 import { AGENT_IDS } from "../core/types.js";
 import { ClaudeAdapter } from "./claude/index.js";
+import { createBuiltInFakeAdapter, fakeModeEnabled } from "./fake.js";
 import { CodexAdapter } from "./codex/index.js";
 import { GeminiAdapter } from "./gemini/index.js";
 
@@ -11,11 +12,12 @@ const registry: Record<AgentId, AgentAdapter> = {
 };
 
 export function getAdapter(id: AgentId): AgentAdapter {
+  if (fakeModeEnabled()) return createBuiltInFakeAdapter(id);
   return registry[id];
 }
 
 export function allAdapters(): AgentAdapter[] {
-  return AGENT_IDS.map((id) => registry[id]);
+  return AGENT_IDS.map((id) => getAdapter(id));
 }
 
 /** Detect every provider in parallel — the slowest CLI decides how long this takes. */

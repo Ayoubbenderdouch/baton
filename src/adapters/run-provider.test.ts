@@ -109,3 +109,109 @@ describe("runProvider (spawn -> parse -> events, no real provider involved)", ()
     expect(seen.some((line) => line.includes('"type":"result"'))).toBe(true);
   });
 });
+
+describe("limit detection through the whole pipeline", () => {
+  const fixturePath = (agent: string, name: string): string =>
+    path.join(process.cwd(), "fixtures", agent, name);
+
+  async function runReplay(
+    agent: "claude" | "codex" | "gemini",
+    parse: (line: string) => AgentEvent[],
+    file: string,
+    extra: string[] = [],
+  ): Promise<AgentEvent[]> {
+    const handle = runProvider(
+      {
+        id: agent,
+        binName: "node",
+        installCommand: "install node",
+        invocation: { args: [FAKE_CLI, file, ...extra] },
+        parseLine: parse,
+      },
+      request,
+    );
+    return collect(handle.events);
+  }
+
+  it("claude: a blocked rate_limit_event becomes one limit event with a reset hint", async () => {
+    const events = await runReplay(
+      "claude",
+      parseClaudeLine,
+      fixturePath("claude", "limit-stream.jsonl"),
+    );
+    const limits = events.filter((e) => e.type === "limit");
+    expect(limits).toHaveLength(1);
+    const limit = firstEvent(events, "limit");
+    expect(limit.resetHint).toBeDefined();
+    expect(limit.raw).toContain("resetsAt=");
+    expect(firstEvent(events, "done").ok).toBe(false);
+  });
+
+  it("codex: a 429 inside turn.failed becomes exactly one limit event, not two", async () => {
+    const { parseCodexLine } = await import("./codex/parse.js");
+    const events = await runReplay(
+      "codex",
+      parseCodexLine,
+      fixturePath("codex", "limit.jsonl"),
+      ["--exit", "1"],
+    );
+    expect(events.filter((e) => e.type === "limit")).toHaveLength(1);
+    expect(events.filter((e) => e.type === "error")).toHaveLength(0);
+    expect(firstEvent(events, "limit").resetHint).toBe("try again in 3 hours 12 minutes");
+  });
+
+  it("gemini: RESOURCE_EXHAUSTED becomes a limit, and the run ends not-ok", async () => {
+    const { parseGeminiLine } = await import("./gemini/parse.js");
+    const events = await runReplay(
+      "gemini",
+      parseGeminiLine,
+      fixturePath("gemini", "limit.jsonl"),
+      ["--exit", "1"],
+    );
+    expect(events.filter((e) => e.type === "limit")).toHaveLength(1);
+    expect(firstEvent(events, "done").ok).toBe(false);
+  });
+
+  it("a transient error line does not override a provider's own success verdict", async () => {
+    const { parseGeminiLine } = await import("./gemini/parse.js");
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const dir = mkdtempSync(path.join(tmpdir(), "baton-transient-"));
+    const file = path.join(dir, "transient.jsonl");
+    writeFileSync(
+      file,
+      [
+        '{"type":"init","session_id":"s1","model":"auto-gemini-3"}',
+        '{"type":"error","message":"transient network blip, retrying"}',
+        '{"type":"message","role":"assistant","content":"recovered and done"}',
+        '{"type":"result","status":"success","stats":{"input_tokens":10,"output_tokens":2}}',
+      ].join("\n"),
+      "utf8",
+    );
+    const events = await runReplay("gemini", parseGeminiLine, file);
+    expect(firstEvent(events, "done").ok).toBe(true);
+    expect(firstEvent(events, "done").resultText).toBe("recovered and done");
+  });
+
+  it("BATON_TEST_FORCE_LIMIT reports a limit without spawning anything", async () => {
+    process.env.BATON_TEST_FORCE_LIMIT = "codex";
+    try {
+      const handle = runProvider(
+        {
+          id: "codex",
+          // A binary that does not exist proves nothing was spawned.
+          binName: "definitely-not-installed-baton-test",
+          installCommand: "n/a",
+          invocation: { args: [] },
+          parseLine: parseClaudeLine,
+        },
+        request,
+      );
+      const events = await collect(handle.events);
+      expect(events.map((e) => e.type)).toEqual(["start", "text", "limit", "done"]);
+      expect(firstEvent(events, "limit").raw).toContain("BATON_TEST_FORCE_LIMIT");
+    } finally {
+      delete process.env.BATON_TEST_FORCE_LIMIT;
+    }
+  });
+});

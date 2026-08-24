@@ -59,7 +59,7 @@ Legend: ✅ verified · ⏳ pending (no machine of that OS available yet).
 | L5 | M2 | `Ctrl+C` mid-run leaves no orphan `node`/provider processes | ⏳ | ⏳ |
 | L6 | M3 | `baton run --agent codex "reply with the word ok"` | ⏳ | ⏳ |
 | L7 | M3 | `baton run --agent gemini "reply with the word ok"` | ⏳ | ⏳ |
-| L8 | M5 | `BATON_TEST_FORCE_LIMIT=claude baton run "…"` relays to codex for real | ⏳ | ⏳ |
+| L8 | M5 | `BATON_TEST_FORCE_LIMIT=claude baton run "…"` relays to codex for real | ✅ 2026-08-24 (handoff written, codex finished the task) | ⏳ |
 | L9 | M8 | Fresh install from the packed tarball, `baton --version`, `baton doctor` | ✅ 2026-08-24 (`npm run smoke`) | ⏳ |
 
 Windows rows stay ⏳ until someone runs them on a real Windows machine; the automated
