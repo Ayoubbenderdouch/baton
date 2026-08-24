@@ -5,8 +5,10 @@ CLI in its documented headless / non-interactive mode** and normalizes output in
 `AgentEvent`s (see ARCHITECTURE.md).
 
 > ✅ **Verified 2026-08-24** against claude 2.1.241, codex-cli 0.147.0 and gemini 0.56.0
-> on macOS — see `docs/CLI-VERIFICATION.md` for the evidence log and the deltas that were
-> folded into this file.
+> on macOS, and **re-verified flag by flag in the release-readiness pass**: every flag
+> Baton passes was matched against the installed binaries' own `--help`, and the two flags
+> it deliberately avoids (`--max-turns`, `codex exec --full-auto`) are still absent.
+> See `docs/CLI-VERIFICATION.md` for the evidence log.
 >
 > ⚠️ **Verify at build time.** All three CLIs move fast. Before implementing each
 > adapter, run the real `--help` (`claude --help`, `codex exec --help`, `gemini --help`)

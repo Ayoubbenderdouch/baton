@@ -29,6 +29,26 @@ writeShim("claude", "2.1.241 (Claude Code)");
 writeShim("codex", "codex-cli 0.147.0");
 writeShim("gemini", "0.56.0");
 
+
+/** A shim that answers `--version` but fails the actual probe run, like a real gate. */
+function writeGatedShim(name: string, version: string, failure: string, code: number): void {
+  if (isWindows) {
+    writeFileSync(
+      path.join(shimDir, `${name}.cmd`),
+      `@echo off\r\nif "%1"=="--version" (echo ${version} & exit /b 0)\r\necho ${failure} 1>&2\r\nexit /b ${code}\r\n`,
+      "utf8",
+    );
+    return;
+  }
+  const file = path.join(shimDir, name);
+  writeFileSync(
+    file,
+    `#!/bin/sh\nif [ "$1" = "--version" ]; then echo "${version}"; exit 0; fi\necho "${failure}" 1>&2\nexit ${code}\n`,
+    "utf8",
+  );
+  chmodSync(file, 0o755);
+}
+
 afterEach(() => {
   process.env.PATH = originalPath;
 });
@@ -83,5 +103,33 @@ describe("auth pattern matching", () => {
     ]) {
       expect(looksLikeAuthProblem(line)).toBe(false);
     }
+  });
+});
+
+describe("the auth probe distinguishes a gate from a login problem", () => {
+  it("explains a provider gate instead of reporting the verdict as unclear", async () => {
+    const { detectProvider } = await import("./shared.js");
+    const { geminiSpec } = await import("./gemini/spec.js");
+    process.env.PATH = shimDir;
+    // Refuses the way gemini refuses an untrusted folder (exit 55) but still answers
+    // --version, exactly like the real binary does.
+    writeGatedShim("gemini", "0.56.0", "Gemini CLI is not running in a trusted directory", 55);
+    const result = await detectProvider(geminiSpec, { probeAuth: true });
+    expect(result.verdict).toBe("ready");
+    expect(result.auth).toBe("unknown");
+    expect(result.detail).toContain("cannot verify from this folder");
+    expect(result.detail).toContain("--skip-trust");
+    writeShim("gemini", "0.56.0");
+  });
+
+  it("still calls a real login failure a login failure", async () => {
+    const { detectProvider } = await import("./shared.js");
+    const { codexSpec } = await import("./codex/spec.js");
+    process.env.PATH = shimDir;
+    writeGatedShim("codex", "codex-cli 0.147.0", "Not logged in. Please log in and retry.", 1);
+    const result = await detectProvider(codexSpec, { probeAuth: true });
+    expect(result.verdict).toBe("auth");
+    expect(result.remedy).toBe("codex login");
+    writeShim("codex", "codex-cli 0.147.0");
   });
 });

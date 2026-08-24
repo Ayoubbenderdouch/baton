@@ -125,6 +125,13 @@ export async function detectProvider(
   if (looksLikeAuthProblem(probeOutput)) {
     return { ...base, auth: "signed_out", verdict: "auth", remedy: spec.loginCommand };
   }
+  // The probe runs a real agent in the current folder, so it can be blocked by that
+  // provider's own gate (an untrusted folder, a missing git repo) rather than by a
+  // login problem. Say which, instead of shrugging with "unclear".
+  const gate = gateRemedy(probeOutput);
+  if (gate !== undefined) {
+    return { ...base, auth: "unknown", detail: `cannot verify from this folder — ${gate}` };
+  }
   return {
     ...base,
     auth: "unknown",

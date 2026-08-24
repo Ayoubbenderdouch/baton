@@ -49,6 +49,9 @@ function remedyLines(results: DetectResult[]): string[] {
       lines.push(`${theme.error(MARK_FAIL)} ${messages.remedySignIn(result.id, result.remedy)}`);
     } else if (result.verdict === "error" && result.detail) {
       lines.push(`${theme.warn(MARK_FAIL)} ${messages.remedyError(result.id, result.detail)}`);
+    } else if (result.verdict === "ready" && result.detail !== undefined) {
+      // A working agent that still has something to say (a blocked probe, for example).
+      lines.push(`${theme.dim("·")} ${theme.dim(messages.remedyError(result.id, result.detail))}`);
     }
   }
   return lines;
