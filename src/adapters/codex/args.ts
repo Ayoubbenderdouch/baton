@@ -8,8 +8,8 @@ import { MAX_PROMPT_ARG_CHARS } from "../shared.js";
  * `--dangerously-bypass-approvals-and-sandbox`, `codex exec resume [SESSION_ID] [PROMPT]`.
  * `--full-auto` does not exist on `exec` in this version.
  */
+/** Only the two sandboxed levels live here — `--unsafe` takes the bypass flag instead. */
 export function sandboxFor(request: RunRequest): string {
-  if (request.unsafe === true) return "danger-full-access";
   return request.permissionLevel === "auto" ? "workspace-write" : "read-only";
 }
 
