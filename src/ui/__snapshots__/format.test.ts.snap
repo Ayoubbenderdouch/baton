@@ -23,6 +23,8 @@ exports[`completion and errors > reports done with agent, time, files and that t
 
 exports[`header > keeps name, version and folder on one line 1`] = `"▌ baton  v0.1.0                                             /work/my-app"`;
 
+exports[`header > pins the exact header layout 1`] = `"▌ baton  v0.1.0                                             /work/my-app"`;
+
 exports[`relay block > is two loud lines with a blank line above and below 1`] = `
 "
 ⚡ [claude] usage limit reached · resets ~19:00

@@ -49,17 +49,23 @@ describe("no colour literals outside the theme", () => {
   it("keeps hex colours out of the components", async () => {
     const { readFileSync, readdirSync } = await import("node:fs");
     const path = await import("node:path");
-    const roots = ["src/ui", "src/ui/components", "src/ui/shell"];
-    const offenders: string[] = [];
-    for (const root of roots) {
-      for (const file of readdirSync(root, { withFileTypes: true })) {
-        if (!file.isFile()) continue;
-        if (!/\.(ts|tsx)$/.test(file.name)) continue;
-        if (file.name.startsWith("theme.")) continue;
-        const contents = readFileSync(path.join(root, file.name), "utf8");
-        if (/#[0-9a-fA-F]{6}\b/.test(contents)) offenders.push(`${root}/${file.name}`);
+
+    /** Walk src/ui, whatever the folder layout happens to be today. */
+    const walk = (dir: string): string[] => {
+      const found: string[] = [];
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) found.push(...walk(full));
+        else if (/\.(ts|tsx)$/.test(entry.name) && !entry.name.startsWith("theme.")) {
+          found.push(full);
+        }
       }
-    }
+      return found;
+    };
+
+    const offenders = walk("src/ui").filter((file) =>
+      /#[0-9a-fA-F]{6}\b/.test(readFileSync(file, "utf8")),
+    );
     expect(offenders).toEqual([]);
   });
 });

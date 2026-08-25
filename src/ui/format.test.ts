@@ -28,9 +28,17 @@ afterEach(() => setGlyphProfile("auto"));
 describe("header", () => {
   it("keeps name, version and folder on one line", () => {
     const line = plain(headerLine({ version: "0.1.0", cwd: "/work/my-app", columns: 72 }));
-    expect(line).toMatchSnapshot();
     expect(line.split("\n")).toHaveLength(1);
     expect(width(line)).toBeLessThanOrEqual(72);
+    expect(line).toContain("▌ baton  v0.1.0");
+    expect(line.endsWith("my-app")).toBe(true);
+  });
+
+  // The exact spacing depends on the cwd, and Windows resolves "/work/my-app" to
+  // "D:\\work\\my-app" — one character wider, so the padding differs. The layout is
+  // pinned on POSIX; Windows keeps the structural guarantees above.
+  it.skipIf(process.platform === "win32")("pins the exact header layout", () => {
+    expect(plain(headerLine({ version: "0.1.0", cwd: "/work/my-app", columns: 72 }))).toMatchSnapshot();
   });
 
   it("truncates the folder through the middle rather than wrapping", () => {
