@@ -267,6 +267,36 @@ export async function loadConfig(
   return { config, origins, warnings };
 }
 
+/**
+ * Assign an already-typed value at a dot path and validate the result.
+ * Used where the caller knows the shape — passing "--model x" through the string parser
+ * would produce ONE argv element with a space in it, which no CLI accepts.
+ */
+export function setByPathValue(
+  target: Record<string, unknown>,
+  dotPath: string,
+  value: unknown,
+): { ok: true } | { ok: false; error: string } {
+  const parts = dotPath.split(".").filter((part) => part !== "");
+  const head = parts[0];
+  if (head === undefined || !CONFIG_KEYS.includes(head)) {
+    return { ok: false, error: `unknown key "${head ?? ""}"` };
+  }
+  let cursor: Record<string, unknown> = target;
+  for (let index = 0; index < parts.length - 1; index += 1) {
+    const part = parts[index] as string;
+    const next = cursor[part];
+    if (typeof next !== "object" || next === null || Array.isArray(next)) cursor[part] = {};
+    cursor = cursor[part] as Record<string, unknown>;
+  }
+  cursor[parts[parts.length - 1] as string] = value;
+
+  const validated = configSchema.partial().safeParse(target);
+  if (validated.success) return { ok: true };
+  const issue = validated.error.issues[0];
+  return { ok: false, error: issue ? `${issue.path.join(".")}: ${issue.message}` : "invalid value" };
+}
+
 /** Dot-path setter for `baton config set roles.architect codex`. */
 export function setByPath(
   target: Record<string, unknown>,

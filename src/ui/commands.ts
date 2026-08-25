@@ -10,6 +10,7 @@ import {
   projectConfigPath,
   readRawConfig,
   setByPath,
+  setByPathValue,
   writeConfigFile,
 } from "../core/config.js";
 import { refreshHandoff } from "../core/handoff-refresh.js";
@@ -367,11 +368,15 @@ async function applyModel(
     context.print([messages.modelCleared(agent)]);
     return;
   }
-  const error = await writeProjectValue(context.cwd, `agents.${agent}.extraArgs`, `${flag} ${value}`);
-  if (error !== undefined) {
-    context.print([paint.error(error)]);
+  // Two argv elements, never one string with a space: that is how a CLI reads a flag.
+  const file = projectConfigPath(context.cwd);
+  const raw = await readRawConfig(file);
+  const result = setByPathValue(raw, `agents.${agent}.extraArgs`, [flag, value]);
+  if (!result.ok) {
+    context.print([paint.error(result.error)]);
     return;
   }
+  await writeConfigFile(file, raw);
   context.print([paint.dim(messages.modelSet(agent, value, flag))]);
 }
 
