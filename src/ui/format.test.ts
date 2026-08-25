@@ -30,7 +30,7 @@ const plain = (text: string): string => stripAnsi(text).replace(/\\/g, "/");
  * one snapshot covers both.
  */
 const HOME_PROJECT = nodePath.join(os.homedir(), "projects", "my-app");
-const plainAll = (lines: string[]): string => stripAnsi(lines.join("\n"));
+const plainAll = (lines: string[]): string => plain(lines.join("\n"));
 
 beforeEach(() => setGlyphProfile("unicode"));
 afterEach(() => setGlyphProfile("auto"));
