@@ -2,7 +2,7 @@
 
 exports[`ascii profile > renders the same screen with safe glyphs 1`] = `
 "
-| baton  v0.1.0                                                ~/projects/my-app
+| baton  v0.1.0                                                                    ~/projects/my-app
 
 +--------------------------------------------------------------------------------------------------+
 | > describe a task...                                                                             |
@@ -14,7 +14,7 @@ enter run - tab agent - ctrl+s status - ctrl+d doctor - esc quit"
 
 exports[`idle screen > matches the target layout 1`] = `
 "
-▌ baton  v0.1.0                                                ~/projects/my-app
+▌ baton  v0.1.0                                                                    ~/projects/my-app
 
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ ❯ describe a task…                                                                               │

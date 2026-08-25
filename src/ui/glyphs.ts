@@ -23,6 +23,8 @@ export interface GlyphSet {
   arrow: string;
   /** Separator between facts on one line. */
   sep: string;
+  /** Horizontal rule inside a frame. */
+  rule: string;
   fail: string;
   ellipsis: string;
   border: "round" | "classic";
@@ -42,6 +44,7 @@ export const UNICODE_GLYPHS: GlyphSet = {
   relay: "⇥",
   arrow: "→",
   sep: "·",
+  rule: "─",
   fail: "✗",
   ellipsis: "…",
   border: "round",
@@ -61,6 +64,7 @@ export const ASCII_GLYPHS: GlyphSet = {
   relay: "->",
   arrow: "->",
   sep: "-",
+  rule: "-",
   fail: "x",
   ellipsis: "...",
   border: "classic",

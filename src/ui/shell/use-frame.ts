@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useStdout } from "ink";
 import { subscribeToFrames } from "../animation.js";
 
 /**
@@ -14,15 +15,22 @@ export function useFrame(active: boolean): number {
   return frame;
 }
 
-/** Terminal width, kept current across resizes. */
+/**
+ * Terminal width, kept current across resizes.
+ *
+ * Read from Ink's own stdout rather than `process.stdout`: they are the same object in a
+ * real terminal, but not under a test renderer — and a layout measured against the wrong
+ * one draws rules and padding that do not line up with the frame.
+ */
 export function useColumns(): number {
-  const [columns, setColumns] = useState(process.stdout.columns ?? 80);
+  const { stdout } = useStdout();
+  const [columns, setColumns] = useState(stdout.columns ?? 80);
   useEffect(() => {
-    const onResize = (): void => setColumns(process.stdout.columns ?? 80);
-    process.stdout.on("resize", onResize);
+    const onResize = (): void => setColumns(stdout.columns ?? 80);
+    stdout.on("resize", onResize);
     return () => {
-      process.stdout.off("resize", onResize);
+      stdout.off("resize", onResize);
     };
-  }, []);
+  }, [stdout]);
   return columns;
 }

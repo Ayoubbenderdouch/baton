@@ -77,6 +77,12 @@ export function App({ initialCwd, version, suspend }: AppProps): React.ReactElem
   const g = glyphs();
 
   const [history, setHistory] = useState<string[]>([]);
+  /**
+   * Ink's <Static> only ever appends: shrinking the array leaves it thinking those lines
+   * are already on screen, so nothing new would appear. /clear therefore clears the
+   * terminal for real and remounts the Static with a fresh key.
+   */
+  const [transcriptKey, setTranscriptKey] = useState(0);
   const [status, setStatus] = useState<LiveStatus | undefined>(undefined);
   const [draft, setDraft] = useState("");
   const [chips, setChips] = useState<ChipState[]>([]);
@@ -267,7 +273,11 @@ export function App({ initialCwd, version, suspend }: AppProps): React.ReactElem
       detected: () => detectedRef.current,
       setOverride,
       setRole,
-      clearTranscript: () => setHistory([]),
+      clearTranscript: () => {
+        stdout.write("\x1b[2J\x1b[H");
+        setHistory([]);
+        setTranscriptKey((current) => current + 1);
+      },
       quit: () => exit(),
       pickAgent,
       askText,
@@ -318,7 +328,9 @@ export function App({ initialCwd, version, suspend }: AppProps): React.ReactElem
   const filtered = paletteOpen ? filterCommands(draft) : [];
 
   useInput((input, key) => {
-    if (busy) return;
+    // A handler that is awaiting an answer is "busy" — but the answer arrives through
+    // exactly these keys, so the picker and the text question must stay reachable.
+    if (busy && picker === undefined && textPrompt === undefined) return;
 
     // 1. the inline agent picker owns the keyboard while it is up
     if (picker !== undefined) {
@@ -517,7 +529,7 @@ export function App({ initialCwd, version, suspend }: AppProps): React.ReactElem
 
   return (
     <Box flexDirection="column">
-      <Static items={history}>
+      <Static key={transcriptKey} items={history}>
         {(line, index) => <Line key={`${index}`}>{line}</Line>}
       </Static>
 

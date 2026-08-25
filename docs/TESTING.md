@@ -85,6 +85,8 @@ Legend: ✅ verified · ⏳ pending (no machine of that OS available yet).
 | L18 | UI | The shell's idle/running/relay screens look right **in a real terminal** | ⏳ (snapshot-tested; no human has seen the live TTY render) | ⏳ |
 | L19 | UI | ASCII profile on a legacy Windows console (`BATON_ASCII=1`, no WT_SESSION) | ⏳ | ⏳ |
 | L20 | UI | Terminal restored after quitting the shell: cursor visible, raw mode off | ⏳ | ⏳ |
+| L21 | Slash | `/login` hands the terminal to the provider's real flow and comes back | ⏳ (stubbed child covered by tests; the real flow needs a human) | ⏳ |
+| L22 | Slash | Ctrl+C during a `/login` child kills only the child, shell survives | ⏳ | ⏳ |
 
 Windows rows stay ⏳ until someone runs them on a real Windows machine **with logged-in
 provider CLIs** — that is the only thing CI cannot do. Everything else is covered:

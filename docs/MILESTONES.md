@@ -107,6 +107,11 @@ CRLF checkout broke the generated-docs comparison) — all fixed in `fix(ci): re
       and a live streaming pane. It **never runs a login** — it prints the command and
       re-checks on `r`, keeping the credential promise literally true. Ink and React load
       lazily, so `baton run "task"` still pays nothing for them.
+- [x] Slash commands: a registry (`src/ui/commands.ts`) that the palette, `/help` and the
+      UX-SPEC table are all generated from, the palette itself, and 17 commands whose
+      handlers call the same core functions the CLI subcommands call. `/login` and
+      `/logout` spawn each provider's own auth command and nothing else.
+      ⏳ (pending) the two live auth checks on macOS and Windows (TESTING.md L21–L22).
 - [x] `npm publish --dry-run` clean (5 files: dist, README, LICENSE, CHANGELOG,
       package.json); CHANGELOG.md written in user language; v0.1.0 tag prepared locally
       (publishing stays manual, the maintainer's call)

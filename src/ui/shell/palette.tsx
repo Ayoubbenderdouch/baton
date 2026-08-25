@@ -56,7 +56,7 @@ export function Palette({
         {paint.accent(`${g.caret} `)}
         {value}
       </Text>
-      <Text>{paint.dim("─".repeat(inner))}</Text>
+      <Text>{paint.dim(g.rule.repeat(inner))}</Text>
       {shown.length === 0 ? (
         <Text>{paint.dim(messages.unknownCommand(value.replace(/^\//, "")))}</Text>
       ) : (

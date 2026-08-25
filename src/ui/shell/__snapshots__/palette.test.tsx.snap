@@ -1,0 +1,84 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ascii profile > renders the palette with safe glyphs 1`] = `
+"
+| baton  v0.1.0                                                                    ~/projects/my-app
+
++--------------------------------------------------------------------------------------------------+
+| > /lo                                                                                            |
+| ------------------------------------------------------------------------------------------------ |
+| > /login    sign in to a provider (opens its official flow)                                      |
+|   /logout   sign out of a provider                                                               |
+| ↑↓ move · tab complete · enter run · esc close                                                   |
++--------------------------------------------------------------------------------------------------+
+
+claude * ready    codex * ready    gemini * ready
+enter run - tab agent - ctrl+s status - ctrl+d doctor - esc quit"
+`;
+
+exports[`opening the palette > filters live as you type, prefix matches first 1`] = `
+"
+▌ baton  v0.1.0                                                                    ~/projects/my-app
+
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ❯ /lo                                                                                            │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────── │
+│ ❯ /login    sign in to a provider (opens its official flow)                                      │
+│   /logout   sign out of a provider                                                               │
+│ ↑↓ move · tab complete · enter run · esc close                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+claude ● ready    codex ● ready    gemini ● ready
+enter run · tab agent · ctrl+s status · ctrl+d doctor · esc quit"
+`;
+
+exports[`opening the palette > opens on the first slash and lists every command 1`] = `
+"
+▌ baton  v0.1.0                                                                    ~/projects/my-app
+
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ❯ /                                                                                              │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────── │
+│ ❯ /help         list the commands                                                                │
+│   /agents       which agent CLIs are installed                                                   │
+│   /doctor       check installs and sign-ins (costs one request per agent)                        │
+│   /status       usage and cooldowns across every agent                                           │
+│   /login        sign in to a provider (opens its official flow)                                  │
+│   /logout       sign out of a provider                                                           │
+│   /model        show or set the model passed through to a provider                               │
+│ … 10 more                                                                                        │
+│ ↑↓ move · tab complete · enter run · esc close                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+claude ● ready    codex ● ready    gemini ● ready
+enter run · tab agent · ctrl+s status · ctrl+d doctor · esc quit"
+`;
+
+exports[`opening the palette > says so when nothing matches, and keeps what was typed 1`] = `
+"
+▌ baton  v0.1.0                                                                    ~/projects/my-app
+
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ❯ /zzz                                                                                           │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────── │
+│ unknown command /zzz · try /help                                                                 │
+│ ↑↓ move · tab complete · enter run · esc close                                                   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+claude ● ready    codex ● ready    gemini ● ready
+enter run · tab agent · ctrl+s status · ctrl+d doctor · esc quit"
+`;
+
+exports[`the argument step > asks which provider when a command needs one 1`] = `
+"❯ /login
+
+▌ baton  v0.1.0                                                                    ~/projects/my-app
+
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ❯ describe a task…                                                                               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+pick a provider:  ❯ claude   codex   gemini  (↑↓ enter esc)
+claude ● ready    codex ● ready    gemini ● ready
+enter run · tab agent · ctrl+s status · ctrl+d doctor · esc quit"
+`;

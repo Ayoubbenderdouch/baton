@@ -149,6 +149,76 @@ Never dump a stack trace at users unless `--verbose`; log full detail to
 Table: agent · installed? (version) · auth probe · verdict, then a summary line
 "2/3 ready — baton can relay between claude and gemini." Exit 0 if ≥1 ready.
 
+## Slash commands
+
+Typing `/` as the first character opens the command palette, attached under the input
+inside the same frame — the input never floats loose while you are choosing:
+
+```
+╭──────────────────────────────────────────────────────────────────────╮
+│ ❯ /lo                                                                │
+│ ──────────────────────────────────────────────────────────────────── │
+│ ❯ /login    sign in to a provider (opens its official flow)          │
+│   /logout   sign out of a provider                                   │
+│ ↑↓ move · tab complete · enter run · esc close                       │
+╰──────────────────────────────────────────────────────────────────────╯
+```
+
+- Filtering is live per keystroke: prefix matches first, then fuzzy; aliases match too.
+  At most 7 rows are shown, and the window follows the selection.
+- `↑↓` move · `tab` completes the highlighted name (a second `tab` completes an agent id
+  for commands that take one) · `enter` runs · `esc` closes the palette keeping the text,
+  `esc` again clears the input.
+- An unknown command prints `unknown command /xyz · try /help` and keeps what was typed.
+- A command that needs a provider and was run bare asks inline, reusing the chip colours:
+
+```
+pick a provider:  ❯ claude   codex   gemini  (↑↓ enter esc)
+```
+
+  Providers that cannot be acted on are dim and skipped by the arrows.
+
+### The commands
+
+<!-- generated from src/ui/commands.ts — run `npm test` to check -->
+
+| Command | What it does | Alias |
+|---|---|---|
+| `/help` | list the commands | /? |
+| `/agents` | which agent CLIs are installed |  |
+| `/doctor` | check installs and sign-ins (costs one request per agent) |  |
+| `/status` | usage and cooldowns across every agent |  |
+| `/login [agent]` | sign in to a provider (opens its official flow) |  |
+| `/logout [agent]` | sign out of a provider |  |
+| `/model [agent] [name|clear]` | show or set the model passed through to a provider |  |
+| `/agent <id|auto>` | lock the next run to one agent, or hand it back to the router |  |
+| `/chain <a,b[,c]>` | set the failover order for this project |  |
+| `/role <name>` | route the next run by role |  |
+| `/permissions [safe|auto]` | show or set what agents may do to your files |  |
+| `/handoff` | write HANDOFF.md right now |  |
+| `/continue` | pick the last task back up |  |
+| `/config` | show the effective config and where each value came from |  |
+| `/init` | create .baton/ with a project config |  |
+| `/clear` | clear the transcript on screen |  |
+| `/quit` | leave baton | /exit |
+
+### `/login` and `/logout` never touch a credential
+
+They spawn the provider's **own** command — `claude auth login`, `codex login`, or the
+Gemini CLI itself when it has no auth subcommand — with a resolved binary, an args array
+and inherited stdio. Baton clears its frame, leaves raw mode, lets the child own the
+terminal, and takes it back when the child exits: it then re-runs detection, refreshes the
+chips and prints one line (`✓ codex signed in`, or the three-line remedy-first error).
+Ctrl+C during the child kills the child alone; Baton ignores SIGINT for that stretch and
+redraws afterwards.
+
+### `/model` passes through, it never knows better
+
+It shows or sets `agents.<id>.extraArgs`, written as two argv elements (`--model`, name)
+because one string with a space is not a flag any CLI accepts. Baton ships **no list of
+model names** — they go stale — and says so: *passed through as `--model`; the provider
+checks it on the next run*. `/model <agent> clear` removes the override.
+
 ## Interactive shell
 
 `baton` with no task opens the shell described above. It **never performs
