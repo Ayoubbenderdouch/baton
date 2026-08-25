@@ -1,7 +1,7 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`ascii profile > swaps every structural glyph for a safe one 1`] = `
-"| baton  v0.1.0                                 /work/my-app
+"| baton  v0.1.0                            ~/projects/my-app
 | [claude] Sprinting... 1s                 esc to interrupt
 * Read a.ts
 
@@ -21,9 +21,7 @@ exports[`completion and errors > puts the remedy first and the log last, three l
 
 exports[`completion and errors > reports done with agent, time, files and that the session was saved 1`] = `"◆ done · [claude] · 3m 12s · 2 files changed · session saved"`;
 
-exports[`header > keeps name, version and folder on one line 1`] = `"▌ baton  v0.1.0                                             /work/my-app"`;
-
-exports[`header > pins the exact header layout 1`] = `"▌ baton  v0.1.0                                             /work/my-app"`;
+exports[`header > keeps name, version and folder on one line 1`] = `"▌ baton  v0.1.0                                        ~/projects/my-app"`;
 
 exports[`relay block > is two loud lines with a blank line above and below 1`] = `
 "

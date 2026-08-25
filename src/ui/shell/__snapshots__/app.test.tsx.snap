@@ -1,20 +1,8 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`ascii profile > falls back to safe glyphs on a legacy console 1`] = `
-"
-| baton  v0.1.0                                                     /work/my-app
-
-+--------------------------------------------------------------------------------------------------+
-| > describe a task...                                                                             |
-+--------------------------------------------------------------------------------------------------+
-
-claude * ready    codex * ready    gemini * ready
-enter run · tab agent · ctrl+s status · ctrl+d doctor · esc quit"
-`;
-
 exports[`ascii profile > renders the same screen with safe glyphs 1`] = `
 "
-| baton  v0.1.0                                                     /work/my-app
+| baton  v0.1.0                                                ~/projects/my-app
 
 +--------------------------------------------------------------------------------------------------+
 | > describe a task...                                                                             |
@@ -26,19 +14,7 @@ enter run - tab agent - ctrl+s status - ctrl+d doctor - esc quit"
 
 exports[`idle screen > matches the target layout 1`] = `
 "
-▌ baton  v0.1.0                                                     /work/my-app
-
-╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ ❯ describe a task…                                                                               │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
-
-claude ● ready    codex ● ready    gemini ● ready
-enter run · tab agent · ctrl+s status · ctrl+d doctor · esc quit"
-`;
-
-exports[`idle screen > shows the whole idle screen 1`] = `
-"
-▌ baton  v0.1.0                                                     /work/my-app
+▌ baton  v0.1.0                                                ~/projects/my-app
 
 ╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ ❯ describe a task…                                                                               │

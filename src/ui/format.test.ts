@@ -19,7 +19,17 @@ import { setGlyphProfile } from "./glyphs.js";
 import { messages } from "./messages.js";
 import { truncateMiddle, width } from "./width.js";
 
-const plain = (text: string): string => stripAnsi(text);
+import os from "node:os";
+import nodePath from "node:path";
+
+/** Backslashes only differ by platform, never by width — normalise for snapshots. */
+const plain = (text: string): string => stripAnsi(text).replace(/\\/g, "/");
+/**
+ * A path under the home directory renders as `~/projects/my-app` on POSIX and
+ * `~\projects\my-app` on Windows: same number of cells, so the padding is identical and
+ * one snapshot covers both.
+ */
+const HOME_PROJECT = nodePath.join(os.homedir(), "projects", "my-app");
 const plainAll = (lines: string[]): string => stripAnsi(lines.join("\n"));
 
 beforeEach(() => setGlyphProfile("unicode"));
@@ -27,23 +37,19 @@ afterEach(() => setGlyphProfile("auto"));
 
 describe("header", () => {
   it("keeps name, version and folder on one line", () => {
-    const line = plain(headerLine({ version: "0.1.0", cwd: "/work/my-app", columns: 72 }));
+    const line = plain(headerLine({ version: "0.1.0", cwd: HOME_PROJECT, columns: 72 }));
     expect(line.split("\n")).toHaveLength(1);
     expect(width(line)).toBeLessThanOrEqual(72);
-    expect(line).toContain("▌ baton  v0.1.0");
-    expect(line.endsWith("my-app")).toBe(true);
-  });
-
-  // The exact spacing depends on the cwd, and Windows resolves "/work/my-app" to
-  // "D:\\work\\my-app" — one character wider, so the padding differs. The layout is
-  // pinned on POSIX; Windows keeps the structural guarantees above.
-  it.skipIf(process.platform === "win32")("pins the exact header layout", () => {
-    expect(plain(headerLine({ version: "0.1.0", cwd: "/work/my-app", columns: 72 }))).toMatchSnapshot();
+    expect(line).toMatchSnapshot();
   });
 
   it("truncates the folder through the middle rather than wrapping", () => {
     const line = plain(
-      headerLine({ version: "0.1.0", cwd: "/very/deep/nested/path/that/keeps/going/my-app", columns: 46 }),
+      headerLine({
+        version: "0.1.0",
+        cwd: nodePath.join(os.homedir(), "very", "deep", "nested", "path", "keeps", "going", "my-app"),
+        columns: 46,
+      }),
     );
     expect(line.split("\n")).toHaveLength(1);
     expect(width(line)).toBeLessThanOrEqual(46);
@@ -52,7 +58,7 @@ describe("header", () => {
   });
 
   it("drops the folder entirely rather than breaking the header", () => {
-    const line = plain(headerLine({ version: "0.1.0", cwd: "/work/my-app", columns: 20 }));
+    const line = plain(headerLine({ version: "0.1.0", cwd: HOME_PROJECT, columns: 20 }));
     expect(line.split("\n")).toHaveLength(1);
   });
 });
@@ -203,7 +209,7 @@ describe("ascii profile", () => {
   it("swaps every structural glyph for a safe one", () => {
     setGlyphProfile("ascii");
     const text = plainAll([
-      headerLine({ version: "0.1.0", cwd: "/work/my-app", columns: 60 }),
+      headerLine({ version: "0.1.0", cwd: HOME_PROJECT, columns: 60 }),
       statusLine({ agent: "claude", elapsedMs: 1000, columns: 60, verb: "Sprinting" }),
       toolLine({ agent: "claude", name: "Read", detail: "a.ts", columns: 60 }),
       ...relayBlock({ from: "claude", to: "codex" }),

@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import os, { tmpdir } from "node:os";
 import path from "node:path";
 import React from "react";
 import { render } from "ink-testing-library";
@@ -38,21 +38,21 @@ afterEach(() => {
 });
 
 const settle = (ms = 300): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-const clean = (text: string): string => stripAnsi(text).replace(/[ \t]+$/gm, "");
+const clean = (text: string): string =>
+  stripAnsi(text).replace(/[ \t]+$/gm, "").replace(/\\/g, "/");
+/** Under the home directory, so the header renders at the same width on every platform. */
+const HOME_PROJECT = path.join(os.homedir(), "projects", "my-app");
 const lastFrame = (app: { lastFrame: () => string | undefined }): string => clean(app.lastFrame() ?? "");
 /** Everything ever drawn, including the <Static> history that scrolled away. */
 const transcript = (app: { frames: string[] }): string => clean(app.frames.join("\n"));
 
 /** Layout tests use a fixed path so the header snapshot is stable. */
-function mount(cwd = "/work/my-app"): ReturnType<typeof render> {
+function mount(cwd = HOME_PROJECT): ReturnType<typeof render> {
   return render(React.createElement(App, { initialCwd: cwd, version: "0.1.0" }));
 }
 
 describe("idle screen", () => {
-  // The header carries the cwd, and Windows resolves the test path to a drive letter of
-  // a different width. The layout is pinned on POSIX; every structural guarantee below
-  // runs everywhere.
-  it.skipIf(process.platform === "win32")("matches the target layout", async () => {
+  it("matches the target layout", async () => {
     const app = mount();
     await settle();
     expect(lastFrame(app)).toMatchSnapshot();
@@ -64,7 +64,7 @@ describe("idle screen", () => {
     await settle();
     const lines = lastFrame(app).split("\n").filter((line) => line.trim() !== "");
 
-    expect(lines[0]).toMatch(/^▌ baton {2}v0\.1\.0\s+\S*work\S+my-app$/);
+    expect(lines[0]).toMatch(/^▌ baton {2}v0\.1\.0\s+~\/projects\/my-app$/);
     // The input box is the anchor of the screen, not a floating prompt.
     expect(lines[1]?.startsWith("╭")).toBe(true);
     expect(lines[2]).toMatch(/^│ ❯ describe a task…/);
@@ -115,7 +115,7 @@ describe("ascii profile", () => {
       expect(text, `${glyph} survived the ascii profile`).not.toContain(glyph);
     }
     expect(text).toContain("> describe a task...");
-    if (process.platform !== "win32") expect(text).toMatchSnapshot();
+    expect(text).toMatchSnapshot();
     app.unmount();
   });
 });
