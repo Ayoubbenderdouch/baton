@@ -1,7 +1,7 @@
 # Baton v0.1.0 — release readiness
 
 A verification pass, not a summary: every line below was produced by running something.
-Date: 2026-08-24 · macOS (darwin 25.3.0) · Node v26.7.0 · commit `b277618`.
+Date: 2026-08-24 · macOS (darwin 25.3.0) · Node v26.7.0 · commit `05e2a9e`.
 
 Nothing here is marked done on the strength of an earlier claim. Where a check needed a
 fix first, the fix is linked to its commit and the check was re-run.
@@ -26,7 +26,7 @@ suites pass in CI on ubuntu, macOS **and** Windows × Node 22/24.
 | M8 Polish & release | ✅ | `npm run smoke` · `npm publish --dry-run` · docs/CONFIG.md generated from the zod schema and guarded by a test · docs/README.ar.md · `last-error.log` tested |
 | M8 Ink interactive shell | ⏭️ | Deliberately skipped — docs/MILESTONES.md marks it optional and says not to delay the release for it |
 
-**Suites:** `npm test` → **234 tests, 26 files, all passing**. `npm run test:ci` (CI colour
+**Suites:** `npm test` → **284 tests, 30 files, all passing**. `npm run test:ci` (CI colour
 settings) → same. Coverage gate from docs/TESTING.md, measured per glob:
 `src/core/**` **94.44 %** lines · `src/adapters/**` **92.22 %** · adapter parsers **93.66 %**
 (gate: 85 %).
@@ -44,6 +44,28 @@ Two things this pass fixed rather than waved through:
   windows-latest jobs. The logic is pure, so it is now a pure function tested directly
   against the captured refusals (`fix(test): test the probe classification purely…`).
   Worth stating plainly: CI caught this, a local run could not have.
+
+## 1b. The UI overhaul (after v0.1.0 was tagged)
+
+The interactive shell was rebuilt to the design language in docs/UX-SPEC.md — bordered
+input as the anchor, agent chips beneath it, a status line with a rotating verb and
+elapsed time, tool lines with nested results, frozen `<Static>` history, and an ASCII
+fallback profile. Presentation only: core, adapters and the orchestrator were not touched
+and their tests never moved.
+
+| Guarantee | How it is held |
+|---|---|
+| Layout cannot drift | Six colour-stripped snapshots: idle, ASCII idle, running block, relay block, error block, non-TTY transcript |
+| One visual system | `src/ui/format.ts` builds every line; the shell boxes them, `baton run` writes them — the same strings |
+| No orange, ever | A test computes the hue of every theme colour and fails inside the orange family; a second fails on any hex literal outside `theme.ts` |
+| Alignment | Real cell widths (CJK 2, ZWJ 0) via `string-width`, never `.length` |
+| Legacy terminals | Glyph profile auto-selected (no `WT_SESSION`, `TERM=dumb`), or `--ascii` / `BATON_ASCII=1`; a test asserts the transcript is then **pure ASCII**, prose included |
+| Keybindings | One pure function with its own tests (enter · esc · double ctrl+c · tab · ctrl+s/d/r) |
+| Performance | History frozen in `<Static>`; one shared 10fps clock for every animated element — `ora` was dropped, one dependency fewer |
+
+**Not verified:** how it looks on a real TTY. Everything is snapshot-tested, but no human
+has watched it render — docs/TESTING.md L18–L20 cover that, the ASCII profile on a legacy
+Windows console, and the clean terminal restore on exit.
 
 ## 2. Security audit — prime rule
 
@@ -154,7 +176,7 @@ unregistered (404).
 
 Already done, listed so nobody repeats them: the GitHub repo exists
 (<https://github.com/Ayoubbenderdouch/baton>, public), `main` and the `v0.1.0` tag are
-pushed, and the 3-OS CI matrix is **green** — latest run: https://github.com/Ayoubbenderdouch/baton/actions/runs/32784068318
+pushed, and the 3-OS CI matrix is **green** — latest run: https://github.com/Ayoubbenderdouch/baton/actions/runs/32824982827
 
 **1 — Live smoke, macOS** (all verified once already; repeat after any change):
 
