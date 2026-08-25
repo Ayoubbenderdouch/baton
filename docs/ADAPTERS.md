@@ -104,7 +104,14 @@ codex exec --json "<prompt>"
   it prints the remedy and points at `agents.codex.extraArgs`.
 - **Resume:** `codex exec resume --last "<follow-up>"` continues the most recent
   non-interactive session (or `codex exec resume <thread_id> …`). Capture the thread id
-  from the event stream when present.
+  from `thread.started`.
+  ⚠️ **`resume` does not accept `--sandbox`** (verified 0.147.0 — zero hits in
+  `codex exec resume --help`; passing it kills the run with *"unexpected argument
+  '--sandbox' found"*). Set the sandbox with a config override instead:
+  `-c sandbox_mode=read-only` / `-c sandbox_mode=workspace-write`. That was verified to be
+  **enforced**, not just accepted: a resumed read-only turn answers *"writing is blocked
+  by read-only sandbox"* and creates no file. `--dangerously-bypass-approvals-and-sandbox`
+  *is* accepted by `resume` and stays behind Baton's `--unsafe`.
 
 **Parsing (verified 0.147.0):** JSONL per line. Real line types seen:
 `thread.started` (**carries `thread_id` — the resume handle**), `turn.started`,

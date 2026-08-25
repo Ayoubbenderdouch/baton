@@ -64,3 +64,30 @@ contract in ARCHITECTURE.md was designed for.
 
 Other agent CLIs seen on this machine but out of scope for v0.1.0: `kimi-cli`, `grok`,
 `cursor-agent`, `vibe`.
+
+## Re-verification — 2026-08-25, after a provider updated itself
+
+Claude Code moved from **2.1.241 to 2.1.243** overnight. Re-checked: every flag Baton
+passes is still present (`-p`, `--output-format stream-json`, `--verbose`,
+`--permission-mode acceptEdits`, `--allowedTools`, `--resume`,
+`--dangerously-skip-permissions`) and `--max-turns` is still absent. No change needed.
+
+**One real defect found by running `baton continue` as a user would:** the Codex resume
+path passed `--sandbox`, which `codex exec resume` rejects outright —
+*"error: unexpected argument '--sandbox' found"*. `baton continue` on Codex was therefore
+broken, and the unit test did not catch it because it asserted my assumption about the
+argument order rather than what the binary accepts.
+
+Fixed by setting the sandbox through a config override on the resume path
+(`-c sandbox_mode=<mode>`), verified twice against the real CLI:
+
+```
+$ codex exec resume --last --json -c sandbox_mode=read-only "reply with the word ok"
+{"type":"turn.completed", ...}                                  # accepted
+
+$ codex exec resume --last --json -c sandbox_mode=read-only "create a file ..."
+ERROR ... patch rejected: writing is blocked by read-only sandbox   # enforced
+```
+
+Lesson recorded in docs/TESTING.md: an adapter's argument list must be checked against
+the subcommand's own `--help`, not only against the top-level command's.

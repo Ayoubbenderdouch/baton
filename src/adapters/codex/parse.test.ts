@@ -100,6 +100,25 @@ describe("codex invocation", () => {
   it("resumes a thread by id", () => {
     const { args } = buildCodexResumeInvocation({ ...base, sessionRef: "thread-9" });
     expect(args.slice(0, 4)).toEqual(["exec", "resume", "thread-9", "--json"]);
+    expect(args.at(-1)).toBe("add a test");
+  });
+
+  it("never passes --sandbox to resume — that subcommand rejects it", () => {
+    // Verified against 0.147.0: `codex exec resume --help` has no --sandbox, and passing
+    // it kills the run with "unexpected argument '--sandbox' found".
+    const safe = buildCodexResumeInvocation({ ...base, sessionRef: "t1" });
+    expect(safe.args).not.toContain("--sandbox");
+    expect(safe.args).toContain("-c");
+    expect(safe.args).toContain("sandbox_mode=read-only");
+
+    const auto = buildCodexResumeInvocation({ ...base, permissionLevel: "auto", sessionRef: "t1" });
+    expect(auto.args).toContain("sandbox_mode=workspace-write");
+  });
+
+  it("uses the bypass flag on resume only under --unsafe", () => {
+    const unsafe = buildCodexResumeInvocation({ ...base, unsafe: true, sessionRef: "t1" });
+    expect(unsafe.args).toContain("--dangerously-bypass-approvals-and-sandbox");
+    expect(unsafe.args).not.toContain("sandbox_mode=read-only");
   });
 
   it("feeds a very long prompt through stdin with the `-` marker", () => {

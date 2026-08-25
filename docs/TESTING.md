@@ -26,6 +26,13 @@ short manual checklist per milestone.
 `crash.txt`, plus `unicode-task.txt` (Arabic + emoji). Every LimitDetector default
 pattern references at least one fixture line in a test.
 
+## Subcommands have their own flags
+
+`codex exec` accepts `--sandbox`; `codex exec resume` does not. A test that asserts an
+argument list proves only that the builder does what the test author assumed — check the
+**subcommand's** `--help` (`codex exec resume --help`, not just `codex --help`) and keep a
+live smoke of every resume path, because that is where this class of bug hides.
+
 ## Colour in tests
 
 CI runners set `FORCE_COLOR`, a piped local shell does not — so a test that compares
@@ -74,6 +81,7 @@ Legend: ✅ verified · ⏳ pending (no machine of that OS available yet).
 | L14 | QA | A provider gate refuses, its remedy command is run, the retry succeeds | ✅ 2026-08-24 (gemini trust → `baton config set agents.gemini.extraArgs -- --skip-trust`) | ⏳ |
 | L15 | QA | Error paths return the right exit codes (2 usage · 3 exhausted · 130 cancel) | ✅ 2026-08-24 | ⏳ |
 | L16 | QA | Piping into `head` exits quietly instead of dumping an EPIPE stack | ✅ 2026-08-24 | ⏳ |
+| L17 | QA | `baton continue` resumes a **codex** thread (its own resume subcommand) | ✅ 2026-08-25 | ⏳ |
 
 Windows rows stay ⏳ until someone runs them on a real Windows machine **with logged-in
 provider CLIs** — that is the only thing CI cannot do. Everything else is covered:
