@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { setGlyphProfile } from "../ui/glyphs.js";
 import { createRequire } from "node:module";
 import { agentsCommand, doctorCommand } from "./commands/doctor.js";
 import { configCommand } from "./commands/config.js";
@@ -37,6 +38,11 @@ export function buildProgram(): Command {
     .name("baton")
     .description(`Baton — ${messages.tagline}`)
     .version(VERSION, "-v, --version", "print the baton version")
+    .option("--ascii", "draw with plain ASCII (legacy terminals)")
+    .hook("preAction", (command) => {
+      const options = command.opts<{ ascii?: boolean }>();
+      if (options.ascii === true) setGlyphProfile("ascii");
+    })
     .showHelpAfterError("(run `baton --help` for usage)")
     .addHelpText(
       "after",

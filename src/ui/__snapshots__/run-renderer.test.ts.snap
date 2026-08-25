@@ -1,0 +1,44 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ascii profile in a pipe > emits pure ASCII, so a legacy console shows no question marks 1`] = `
+"baton: run "fix the flaky auth test"
+baton: router -> claude (keyword "fix")
+baton: claude started
+baton: Read: src/auth/session.test.ts
+baton: The flakiness comes from a shared fixture.
+baton: claude usage limit reached (resets ~19:00)
+baton: passing the baton to codex (handoff written: /work/my-app/HANDOFF.md)
+baton: codex started
+baton: Picked it up and fixed the fixture.
+baton: codex done - done in 3m 12s - 2 files changed
+baton: still working - no output for 2 min
+baton: codex: not signed in
+baton: run: codex   (then retry)
+"
+`;
+
+exports[`non-TTY transcript > is plain, prefixed, and carries the whole story 1`] = `
+"baton: run "fix the flaky auth test"
+baton: router → claude (keyword "fix")
+baton: claude started
+baton: Read: src/auth/session.test.ts
+baton: The flakiness comes from a shared fixture.
+baton: claude usage limit reached (resets ~19:00)
+baton: passing the baton to codex (handoff written: /work/my-app/HANDOFF.md)
+baton: codex started
+baton: Picked it up and fixed the fixture.
+baton: codex done · done in 3m 12s · 2 files changed"
+`;
+
+exports[`rich transcript (a real terminal) > uses the same visual system as the shell 1`] = `
+"❯ fix the flaky auth test
+router → claude (keyword "fix")
+⏺ Read src/auth/session.test.ts
+The flakiness comes from a shared fixture.
+
+⚡ [claude] usage limit reached · resets ~19:00
+⇥ passing the baton → [codex] · handoff written · HANDOFF.md
+
+Picked it up and fixed the fixture.
+◆ done · [codex] · 3m 12s · 2 files changed · session saved"
+`;

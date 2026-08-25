@@ -1,3 +1,4 @@
+import { VERSION } from "../../cli/program.js";
 import { isTTY } from "../theme.js";
 
 export interface ShellResult {
@@ -20,7 +21,7 @@ export async function startShell(cwd: string = process.cwd()): Promise<ShellResu
     import("react"),
     import("./app.js"),
   ]);
-  const instance = render(React.createElement(App, { initialCwd: cwd }));
+  const instance = render(React.createElement(App, { initialCwd: cwd, version: VERSION }));
   await instance.waitUntilExit();
   return { started: true };
 }

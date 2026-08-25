@@ -1,0 +1,42 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ascii profile > swaps every structural glyph for a safe one 1`] = `
+"| baton  v0.1.0                                 /work/my-app
+| [claude] Sprinting... 1s                 esc to interrupt
+* Read a.ts
+
+! [claude] usage limit reached
+-> passing the baton -> [codex]
+
+* done - [claude] - 1s - 0 files changed - session saved
+x codex: not signed in
+  -> run: codex"
+`;
+
+exports[`completion and errors > puts the remedy first and the log last, three lines at most 1`] = `
+"✗ codex: not signed in
+  → run: codex   (then retry)
+  log: ~/.baton/last-error.log"
+`;
+
+exports[`completion and errors > reports done with agent, time, files and that the session was saved 1`] = `"◆ done · [claude] · 3m 12s · 2 files changed · session saved"`;
+
+exports[`header > keeps name, version and folder on one line 1`] = `"▌ baton  v0.1.0                                             /work/my-app"`;
+
+exports[`relay block > is two loud lines with a blank line above and below 1`] = `
+"
+⚡ [claude] usage limit reached · resets ~19:00
+⇥ passing the baton → [codex] · handoff written · HANDOFF.md
+"
+`;
+
+exports[`running block > renders the prompt echo, status line, tool line and nested result 1`] = `
+"❯ fix the flaky auth test
+▐ [claude] Sprinting… 12s · 3.1k tokens                esc to interrupt
+⏺ Read src/auth/session.test.ts
+⏺ Bash npm test -- auth
+  ⎿ 2 passed, 1 failed
+    line two
+    line three
+    +2 lines (ctrl+r to expand)"
+`;

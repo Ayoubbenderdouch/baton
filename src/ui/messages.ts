@@ -1,3 +1,5 @@
+import { glyphs } from "./glyphs.js";
+
 /**
  * Every user-facing string lives here (baton-ui-style skill).
  * Short, active voice, numbers over adjectives, no exclamation-mark spam.
@@ -30,30 +32,33 @@ export const messages = {
   },
 
   remedyInstall: (agent: string, command: string): string =>
-    `${agent}: not installed -> run: ${command}`,
+    `${agent}: not installed ${glyphs().arrow} run: ${command}`,
   remedySignIn: (agent: string, command: string): string =>
-    `${agent}: not signed in -> run: ${command}   (then retry baton run)`,
+    `${agent}: not signed in ${glyphs().arrow} run: ${command}   (then retry baton run)`,
   remedyError: (agent: string, detail: string): string => `${agent}: ${detail}`,
 
   stillWorking: (minutes: number): string =>
     `still working — no output for ${minutes} min`,
 
+  stillWorkingVerb: "Still going",
+
   turnSummary: (durationMs: number, filesChanged: number): string => {
     const seconds = Math.round(durationMs / 1000);
     const time = seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
     const files = filesChanged === 1 ? "1 file changed" : `${filesChanged} files changed`;
-    return `done in ${time} · ${files}`;
+    return `done in ${time} ${glyphs().sep} ${files}`;
   },
 
   logHint: (logPath: string): string => `full detail: ${logPath}`,
 
-  routerDecision: (agent: string, reason: string): string => `router → ${agent} (${reason})`,
+  routerDecision: (agent: string, reason: string): string =>
+    `router ${glyphs().arrow} ${agent} (${reason})`,
 
   noAgentAvailable:
     "no agent is available — run `baton doctor` to see what is installed and signed in",
 
   agentNotInstalled: (agent: string, command: string): string =>
-    `${agent} is not installed -> run: ${command}`,
+    `${agent} is not installed ${glyphs().arrow} run: ${command}`,
 
   cancelled: "cancelled — the agent process and its children were stopped",
 
@@ -103,6 +108,43 @@ export const messages = {
 
   continueRelay: (agent: string, handoffPath: string): string =>
     `continuing with ${agent} via the handoff (${handoffPath})`,
+
+  /* ---- interactive shell ---------------------------------------------- */
+
+  /**
+   * The status verb rotates while an agent works. Relay-themed on purpose — the baton
+   * is the product's whole idea — and kept plain enough to read a hundred times a day.
+   */
+  workingVerbs: [
+    "Sprinting",
+    "Pacing",
+    "Warming up",
+    "On the track",
+    "Passing",
+    "Stretching",
+  ] as readonly string[],
+
+  placeholder: (ellipsis: string): string => `describe a task${ellipsis}`,
+  interruptHint: "esc to interrupt",
+  idleHints: [
+    "enter run",
+    "tab agent",
+    "ctrl+s status",
+    "ctrl+d doctor",
+    "esc quit",
+  ] as readonly string[],
+  runningHints: ["esc interrupt", "ctrl+r expand results"] as readonly string[],
+  finishedHints: ["enter new task", "esc quit"] as readonly string[],
+  confirmQuit: "press ctrl+c again to quit",
+  expandHint: (lines: number): string => `+${lines} lines (ctrl+r to expand)`,
+  collapseHint: "ctrl+r to collapse",
+  agentOverride: (agent: string): string => `agent locked to ${agent} — tab to change`,
+  agentAuto: "router picks the agent — tab to lock one",
+  sessionSaved: "session saved",
+  limitReached: "usage limit reached",
+  relayHandoffNote: "handoff written",
+  pickUp: "picking up",
+  noAgentsChip: "no agent ready — see the list above",
 
   statusTitle: "BATON STATUS",
   statusNoData: "no data yet — run something with baton run",

@@ -1,17 +1,15 @@
 import type { StatusReport } from "../core/status.js";
 import { formatTokens } from "../core/status.js";
 import type { DetectResult } from "../core/types.js";
+import { glyphs } from "./glyphs.js";
 import { messages } from "./messages.js";
-import { formatTable } from "./table.js";
+import { table as buildTable } from "./format.js";
 import { badge, theme } from "./theme.js";
 
-const DOT_READY = "●"; // ●
-const DOT_OFF = "○"; // ○
-const MARK_FAIL = "✗"; // ✗
 
 function installedCell(result: DetectResult): string {
-  if (!result.installed) return `${theme.dim(DOT_OFF)} ${theme.dim("not installed")}`;
-  return `${theme.success(DOT_READY)} ${result.version ?? "unknown version"}`;
+  if (!result.installed) return `${theme.dim(glyphs().dotBlocked)} ${theme.dim("not installed")}`;
+  return `${theme.success(glyphs().dotReady)} ${result.version ?? "unknown version"}`;
 }
 
 function authCell(result: DetectResult): string {
@@ -44,11 +42,11 @@ function remedyLines(results: DetectResult[]): string[] {
   const lines: string[] = [];
   for (const result of results) {
     if (result.verdict === "not_installed" && result.remedy) {
-      lines.push(`${theme.dim(MARK_FAIL)} ${messages.remedyInstall(result.id, result.remedy)}`);
+      lines.push(`${theme.dim(glyphs().fail)} ${messages.remedyInstall(result.id, result.remedy)}`);
     } else if (result.verdict === "auth" && result.remedy) {
-      lines.push(`${theme.error(MARK_FAIL)} ${messages.remedySignIn(result.id, result.remedy)}`);
+      lines.push(`${theme.error(glyphs().fail)} ${messages.remedySignIn(result.id, result.remedy)}`);
     } else if (result.verdict === "error" && result.detail) {
-      lines.push(`${theme.warn(MARK_FAIL)} ${messages.remedyError(result.id, result.detail)}`);
+      lines.push(`${theme.warn(glyphs().fail)} ${messages.remedyError(result.id, result.detail)}`);
     } else if (result.verdict === "ready" && result.detail !== undefined) {
       // A working agent that still has something to say (a blocked probe, for example).
       lines.push(`${theme.dim("·")} ${theme.dim(messages.remedyError(result.id, result.detail))}`);
@@ -58,7 +56,7 @@ function remedyLines(results: DetectResult[]): string[] {
 }
 
 export function renderDoctor(results: DetectResult[], options: { probed: boolean }): string {
-  const table = formatTable(
+  const table = buildTable(
     ["AGENT", "INSTALLED", "AUTH", "VERDICT"],
     results.map((result) => [
       badge(result.id),
@@ -68,7 +66,7 @@ export function renderDoctor(results: DetectResult[], options: { probed: boolean
     ]),
   );
   const ready = results.filter((result) => result.verdict === "ready").map((r) => r.id);
-  const parts = [theme.violet(theme.bold(messages.doctorTitle)), "", table, ""];
+  const parts = [theme.violet(theme.bold(messages.doctorTitle)), "", ...table, ""];
   const remedies = remedyLines(results);
   if (remedies.length > 0) parts.push(...remedies, "");
   parts.push(messages.doctorSummary(ready, results.length));
@@ -77,7 +75,7 @@ export function renderDoctor(results: DetectResult[], options: { probed: boolean
 }
 
 export function renderAgents(results: DetectResult[]): string {
-  const table = formatTable(
+  const table = buildTable(
     ["AGENT", "CLI", "VERSION", "AVAILABLE"],
     results.map((result) => [
       badge(result.id),
@@ -86,18 +84,17 @@ export function renderAgents(results: DetectResult[]): string {
       result.verdict === "ready" ? theme.success("yes") : theme.dim("no"),
     ]),
   );
-  return `${theme.violet(theme.bold(messages.agentsTitle))}\n\n${table}\n`;
+  return `${theme.violet(theme.bold(messages.agentsTitle))}\n\n${table.join("\n")}\n`;
 }
 
 
-const DOT_COOLING = "◌"; // ◌
 
 /** `baton status` — one dashboard across every subscription (docs/USAGE-TRACKING.md). */
 export function renderStatus(report: StatusReport, options: { deep: boolean }): string {
   const rows = report.agents.map((agent) => {
     const state = agent.cooling
-      ? `${theme.warn(DOT_COOLING)} ${theme.warn("cooling")}`
-      : `${theme.success(DOT_READY)} ${theme.success("ready")}`;
+      ? `${theme.warn(glyphs().dotCooling)} ${theme.warn("cooling")}`
+      : `${theme.success(glyphs().dotReady)} ${theme.success("ready")}`;
 
     const today = agent.noData
       ? theme.dim(messages.statusNoData)
@@ -126,8 +123,8 @@ export function renderStatus(report: StatusReport, options: { deep: boolean }): 
   const header = `${theme.violet(theme.bold(messages.statusTitle))}${" ".repeat(8)}${theme.dim(
     `project: ${report.project}`,
   )}`;
-  const table = formatTable(["AGENT", "STATE", "TODAY (baton runs)", "LAST LIMIT", "NOTE"], rows);
-  const lines = [header, "", table, "", theme.dim(messages.statusTokensNote)];
+  const table = buildTable(["AGENT", "STATE", "TODAY (baton runs)", "LAST LIMIT", "NOTE"], rows);
+  const lines = [header, "", ...table, "", theme.dim(messages.statusTokensNote)];
   if (!options.deep) lines.push(theme.dim(messages.statusDeepHint));
   return `${lines.join("\n")}\n`;
 }

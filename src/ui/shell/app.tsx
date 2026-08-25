@@ -1,356 +1,324 @@
-import { readdirSync } from "node:fs";
-import path from "node:path";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Text, useApp, useInput } from "ink";
+import { Box, Static, Text, useApp, useInput, useStdout } from "ink";
 import { detectAll } from "../../adapters/registry.js";
 import { loadConfig } from "../../core/config.js";
 import { executeTask } from "../../core/execute.js";
-import { buildStatusReport } from "../../core/status.js";
-import type { AgentId } from "../../core/types.js";
+import { buildStatusReport, formatTokens } from "../../core/status.js";
+import { AGENT_IDS, type AgentId, type DetectResult } from "../../core/types.js";
 import { UsageStore } from "../../core/usage-store.js";
-import { messages } from "../messages.js";
-import { renderStatus } from "../render.js";
-import { CollectingRenderer, type PaneLine } from "./collecting-renderer.js";
+import { ASCII_SPINNER_FRAMES, SPINNER_FRAMES } from "../animation.js";
 import {
-  MAX_PANE_LINES,
-  MENU,
-  applyKey,
-  moveSelection,
-  summarize,
-  type Screen,
-  type WelcomeSummary,
-} from "./model.js";
+  chipsLine,
+  doneLine,
+  errorBlock,
+  headerLine,
+  hintLine,
+  statusLine,
+  table,
+  type ChipState,
+} from "../format.js";
+import { asciify, glyphs } from "../glyphs.js";
+import { messages } from "../messages.js";
+import { RunRenderer, type LiveStatus } from "../run-renderer.js";
+import { palette, paint } from "../theme.js";
+import { resolveKey } from "./keys.js";
+import { useColumns, useFrame } from "./use-frame.js";
 
-const VIOLET = "#8B5CF6";
-const CYAN = "#22D3EE";
-const MARKS = { ready: "●", cooling: "◌", blocked: "○" } as const;
-const MARK_COLORS = { ready: "green", cooling: "yellow", blocked: "gray" } as const;
-const LINE_COLORS: Record<PaneLine["kind"], string | undefined> = {
-  text: undefined,
-  tool: "gray",
-  note: "gray",
-  warn: "yellow",
-  relay: CYAN,
-  done: "green",
-  fail: "red",
-};
+type Overlay = "none" | "status" | "doctor";
 
-function Header({ summary }: { summary: WelcomeSummary | undefined }): React.ReactElement {
-  return (
-    <Box justifyContent="space-between">
-      <Text color={VIOLET} bold>
-        ▐ baton
-      </Text>
-      <Text>
-        {summary === undefined
-          ? ""
-          : summary.rows.map((row) => (
-              <Text key={row.id}>
-                <Text dimColor>{row.id} </Text>
-                <Text color={MARK_COLORS[row.mark]}>{MARKS[row.mark]} </Text>
-              </Text>
-            ))}
-      </Text>
-    </Box>
-  );
+/** Every line in the shell goes through here, so the ASCII profile applies everywhere. */
+function Line({ children }: { children: string }): React.ReactElement {
+  return <Text>{asciify(children)}</Text>;
 }
 
-function Welcome({
-  summary,
-  detecting,
-  probed,
-}: {
-  summary: WelcomeSummary | undefined;
-  detecting: boolean;
-  probed: boolean;
-}): React.ReactElement {
-  return (
-    <Box flexDirection="column">
-      <Text color={VIOLET} bold>
-        Baton — {messages.tagline}
-      </Text>
-      <Box height={1} />
-      {detecting || summary === undefined ? (
-        <Text dimColor>looking for your agent CLIs…</Text>
-      ) : (
-        <Box flexDirection="column">
-          {summary.rows.map((row) => (
-            <Box key={row.id} flexDirection="column">
-              <Box>
-                <Text color={MARK_COLORS[row.mark]}>{MARKS[row.mark]} </Text>
-                <Text color={VIOLET}>{`[${row.id}]`.padEnd(10)}</Text>
-                <Text>{row.label}</Text>
-              </Box>
-              {row.remedy !== undefined && (
-                <Text>
-                  {"            "}
-                  <Text dimColor>→ run: </Text>
-                  <Text color={CYAN}>{row.remedy}</Text>
-                </Text>
-              )}
-            </Box>
-          ))}
-          <Box height={1} />
-          <Text>{summary.headline}</Text>
-          {!probed && (
-            <Text dimColor>
-              logins are not verified yet — checking costs one tiny request per agent
-            </Text>
-          )}
-        </Box>
-      )}
-      <Box height={1} />
-      <Text dimColor>
-        <Text color={CYAN}>[enter]</Text> continue · <Text color={CYAN}>[p]</Text> verify logins
-        · <Text color={CYAN}>[r]</Text> re-check · <Text color={CYAN}>[q]</Text> quit
-      </Text>
-    </Box>
-  );
+const MAX_HISTORY = 500;
+
+function agentChips(results: DetectResult[], cooling: (agent: AgentId) => string | undefined): ChipState[] {
+  return results.map((result) => {
+    if (!result.installed) return { agent: result.id, mark: "blocked", detail: "not installed" };
+    if (result.verdict === "auth") return { agent: result.id, mark: "blocked", detail: "not signed in" };
+    const hint = cooling(result.id);
+    if (hint !== undefined) return { agent: result.id, mark: "cooling", detail: hint };
+    return { agent: result.id, mark: "ready", detail: "ready" };
+  });
 }
 
-function Menu({ selected, cwd }: { selected: number; cwd: string }): React.ReactElement {
-  return (
-    <Box flexDirection="column">
-      <Text dimColor>folder: {cwd}</Text>
-      <Box height={1} />
-      <Text color={VIOLET}>What do you want to do?</Text>
-      {MENU.map((item, index) => (
-        <Box key={item.key}>
-          <Text color={index === selected ? CYAN : undefined}>
-            {index === selected ? " ▸ " : "   "}
-            {item.label.padEnd(24)}
-          </Text>
-          <Text dimColor>{item.hint}</Text>
-        </Box>
-      ))}
-      <Box height={1} />
-      <Text dimColor>↑↓ choose · enter confirm · q quit</Text>
-    </Box>
-  );
+function doctorRows(results: DetectResult[]): string[][] {
+  const g = glyphs();
+  return results.map((result) => [
+    paint.agent(result.id, `[${result.id}]`),
+    result.installed
+      ? `${paint.success(g.dotReady)} ${result.version ?? "unknown"}`
+      : `${paint.dim(g.dotBlocked)} ${paint.dim("not installed")}`,
+    result.auth === "ok" ? paint.success("signed in") : paint.dim("not probed"),
+    result.verdict === "ready" ? paint.success("ready") : paint.warn(result.verdict),
+  ]);
 }
 
-function Pane({ lines, task, running }: { lines: PaneLine[]; task: string; running: boolean }): React.ReactElement {
-  const visible = lines.slice(-24);
-  return (
-    <Box flexDirection="column">
-      <Text color={VIOLET}>◇ {task}</Text>
-      <Box height={1} />
-      {visible.map((line, index) => (
-        <Text key={`${index}-${line.text.slice(0, 12)}`} color={LINE_COLORS[line.kind]}>
-          {line.kind === "text" ? "│  " : "│  "}
-          {line.text}
-        </Text>
-      ))}
-      <Box height={1} />
-      <Text dimColor>{running ? "working… (ctrl+c stops the agent)" : "[enter] back to the menu"}</Text>
-    </Box>
-  );
-}
-
-export function App({ initialCwd }: { initialCwd: string }): React.ReactElement {
+export function App({ initialCwd, version }: { initialCwd: string; version: string }): React.ReactElement {
   const { exit } = useApp();
-  const [screen, setScreen] = useState<Screen>("welcome");
-  const [summary, setSummary] = useState<WelcomeSummary | undefined>(undefined);
-  const [detecting, setDetecting] = useState(true);
-  const [probed, setProbed] = useState(false);
-  const [cwd, setCwd] = useState(initialCwd);
-  const [selected, setSelected] = useState(0);
-  const [draft, setDraft] = useState("");
-  // The keypress handler must never read a stale draft: someone who types fast and hits
-  // enter immediately would otherwise lose their last characters.
-  const draftRef = useRef("");
-  const updateDraft = useCallback((next: string) => {
-    draftRef.current = next;
-    setDraft(next);
-  }, []);
-  const [task, setTask] = useState("");
-  const [lines, setLines] = useState<PaneLine[]>([]);
-  const [running, setRunning] = useState(false);
-  const [statusText, setStatusText] = useState("");
-  const [folders, setFolders] = useState<string[]>([]);
+  const { stdout } = useStdout();
+  const columns = useColumns();
+  const g = glyphs();
 
-  const detect = useCallback(
-    async (probeAuth: boolean) => {
-      setDetecting(true);
-      const usage = await UsageStore.load();
-      const { config } = await loadConfig(cwd);
-      const results = await detectAll(probeAuth ? { probeAuth: true } : {});
-      const coolingOf = (agent: AgentId): string | undefined => {
+  const [history, setHistory] = useState<string[]>([]);
+  const [status, setStatus] = useState<LiveStatus | undefined>(undefined);
+  const [draft, setDraft] = useState("");
+  const [chips, setChips] = useState<ChipState[]>([]);
+  const [detected, setDetected] = useState<DetectResult[]>([]);
+  const [override, setOverride] = useState<AgentId | undefined>(undefined);
+  const [expanded, setExpanded] = useState(false);
+  const [overlay, setOverlay] = useState<Overlay>("none");
+  const [overlayLines, setOverlayLines] = useState<string[]>([]);
+  const [quitHintShown, setQuitHintShown] = useState(false);
+
+  const draftRef = useRef("");
+  const quitPressRef = useRef<number | undefined>(undefined);
+  const abortRef = useRef<AbortController | undefined>(undefined);
+  const running = status !== undefined;
+  const frame = useFrame(running);
+
+  const push = useCallback((lines: string[]) => {
+    setHistory((previous) => {
+      const next = [...previous, ...lines];
+      return next.length <= MAX_HISTORY ? next : next.slice(next.length - MAX_HISTORY);
+    });
+  }, []);
+
+  const refresh = useCallback(async (probeAuth: boolean) => {
+    const usage = await UsageStore.load();
+    const { config } = await loadConfig(initialCwd);
+    const results = await detectAll(probeAuth ? { probeAuth: true } : {});
+    setDetected(results);
+    setChips(
+      agentChips(results, (agent) => {
         const state = usage.cooldown(agent, config.cooldownMinutes, new Date());
-        return state.cooling ? (state.resetHint ?? "cooling down") : undefined;
-      };
-      setSummary(summarize(results, coolingOf));
-      setDetecting(false);
-      if (probeAuth) setProbed(true);
-    },
-    [cwd],
-  );
+        return state.cooling ? (state.resetHint ?? "cooling") : undefined;
+      }),
+    );
+  }, [initialCwd]);
 
   useEffect(() => {
-    void detect(false);
-  }, [detect]);
+    void refresh(false);
+  }, [refresh]);
 
-  const runTaskNow = useCallback(
-    async (text: string) => {
-      setTask(text);
-      setLines([]);
-      setRunning(true);
-      setScreen("running");
-      const renderer = new CollectingRenderer((line) =>
-        setLines((previous) => {
-          const next = [...previous, line];
-          return next.length <= MAX_PANE_LINES ? next : next.slice(next.length - MAX_PANE_LINES);
-        }),
-      );
+  const run = useCallback(
+    async (task: string) => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const renderer = new RunRenderer({
+        columns,
+        sink: (line) => push([line]),
+        onStatus: (next) => setStatus(next),
+      });
+      renderer.task(task);
       try {
-        const outcome = await executeTask(text, cwd, renderer, {});
+        const outcome = await executeTask(task, initialCwd, renderer, {
+          signal: controller.signal,
+          ...(override !== undefined ? { agent: override } : {}),
+        });
         if (outcome.kind === "blocked") {
           renderer.fail(outcome.reason, outcome.remedy);
+        } else if (outcome.result.status === "done") {
+          const last = outcome.result.outcomes.at(-1);
+          push([
+            doneLine({
+              agent: last?.agent ?? outcome.startAgent,
+              durationMs: last?.durationMs ?? 0,
+              filesChanged: last?.filesChanged.length ?? 0,
+            }),
+          ]);
         } else if (outcome.result.status === "exhausted") {
-          renderer.fail(messages.allAgentsExhausted);
-          for (const blocked of outcome.result.blocked) {
-            renderer.note(messages.blockedAgent(blocked.agent, blocked.reason, blocked.until));
-          }
+          renderer.fail(messages.allAgentsExhausted, "baton status");
+        } else if (outcome.result.status === "cancel") {
+          push(errorBlock({ what: messages.cancelled }));
+        } else {
+          const last = outcome.result.outcomes.at(-1);
+          renderer.fail(
+            messages.agentFailed(last?.agent ?? outcome.startAgent, last?.error?.kind ?? "unknown"),
+            last?.error?.raw?.split("\n")[0],
+          );
         }
       } catch (error: unknown) {
         renderer.fail(error instanceof Error ? error.message : String(error));
       } finally {
         renderer.stop();
-        setRunning(false);
-        void detect(false);
+        setStatus(undefined);
+        abortRef.current = undefined;
+        void refresh(false);
       }
     },
-    [cwd, detect],
+    [columns, initialCwd, override, push, refresh],
   );
-
-  const openFolders = useCallback(() => {
-    let entries: string[];
-    try {
-      entries = readdirSync(cwd, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
-        .map((entry) => entry.name)
-        .sort();
-    } catch {
-      // why: an unreadable folder is a normal thing to land on — offer only "..".
-      entries = [];
-    }
-    setFolders(["..", ...entries]);
-    setSelected(0);
-    setScreen("folder");
-  }, [cwd]);
 
   const openStatus = useCallback(async () => {
     const usage = await UsageStore.load();
-    const { config } = await loadConfig(cwd);
-    setStatusText(
-      renderStatus(
-        buildStatusReport(usage, { project: cwd, now: new Date(), cooldownMinutes: config.cooldownMinutes }),
-        { deep: false },
-      ),
-    );
-    setScreen("status");
-  }, [cwd]);
+    const { config } = await loadConfig(initialCwd);
+    const report = buildStatusReport(usage, {
+      project: initialCwd,
+      now: new Date(),
+      cooldownMinutes: config.cooldownMinutes,
+    });
+    const rows = report.agents.map((agent) => [
+      paint.agent(agent.agent, `[${agent.agent}]`),
+      agent.cooling ? `${paint.warn(g.dotCooling)} ${paint.warn("cooling")}` : `${paint.success(g.dotReady)} ${paint.success("ready")}`,
+      agent.noData
+        ? paint.dim(messages.statusNoData)
+        : `${agent.runsToday} · ${formatTokens(agent.inputTokensToday)} in/${formatTokens(agent.outputTokensToday)} out`,
+      agent.lastLimitResetHint ?? paint.dim("—"),
+    ]);
+    setOverlayLines([
+      ...table(["AGENT", "STATE", "TODAY", "LAST LIMIT"], rows),
+      "",
+      paint.dim(messages.statusTokensNote),
+    ]);
+    setOverlay("status");
+  }, [g, initialCwd]);
+
+  const openDoctor = useCallback(() => {
+    const ready = detected.filter((result) => result.verdict === "ready").map((r) => r.id);
+    setOverlayLines([
+      ...table(["AGENT", "INSTALLED", "AUTH", "VERDICT"], doctorRows(detected)),
+      "",
+      messages.doctorSummary(ready, detected.length),
+      ...detected
+        .filter((result) => result.remedy !== undefined && result.verdict !== "ready")
+        .map((result) => paint.accent(`${g.arrow} ${result.remedy ?? ""}`)),
+    ]);
+    setOverlay("doctor");
+  }, [detected]);
+
+  const cycleAgent = useCallback(() => {
+    setOverride((current) => {
+      if (current === undefined) return AGENT_IDS[0];
+      const index = AGENT_IDS.indexOf(current);
+      return index >= AGENT_IDS.length - 1 ? undefined : AGENT_IDS[index + 1];
+    });
+  }, []);
 
   useInput((input, key) => {
-    if (screen === "welcome") {
-      if (input === "q") exit();
-      else if (input === "r") void detect(false);
-      else if (input === "p") void detect(true);
-      else if (key.return && summary?.canContinue === true) {
-        setSelected(0);
-        setScreen("menu");
-      }
-      return;
-    }
+    const action = resolveKey(
+      input,
+      key,
+      { running, now: Date.now(), ...(quitPressRef.current !== undefined ? { lastQuitPressAt: quitPressRef.current } : {}) },
+      draftRef.current,
+    );
 
-    if (screen === "menu") {
-      if (input === "q") exit();
-      else if (key.upArrow) setSelected((current) => moveSelection(current, -1, MENU.length));
-      else if (key.downArrow) setSelected((current) => moveSelection(current, 1, MENU.length));
-      else if (key.return) {
-        const item = MENU[selected];
-        if (item === undefined) return;
-        if (item.key === "quit") exit();
-        else if (item.key === "task") {
-          setDraft("");
-          setScreen("task");
-        } else if (item.key === "folder") openFolders();
-        else if (item.key === "status") void openStatus();
-      }
-      return;
-    }
+    if (action.kind !== "confirm-quit" && quitHintShown) setQuitHintShown(false);
 
-    if (screen === "task") {
-      if (key.escape) setScreen("menu");
-      else if (key.return) {
+    switch (action.kind) {
+      case "quit":
+        abortRef.current?.abort();
+        exit();
+        return;
+      case "confirm-quit":
+        quitPressRef.current = Date.now();
+        setQuitHintShown(true);
+        return;
+      case "interrupt":
+        abortRef.current?.abort();
+        return;
+      case "submit": {
+        if (overlay !== "none") {
+          setOverlay("none");
+          return;
+        }
         const text = draftRef.current.trim();
-        if (text !== "") void runTaskNow(text);
-      } else updateDraft(applyKey(draftRef.current, input, key));
-      return;
-    }
-
-    if (screen === "running") {
-      if (!running && key.return) setScreen("menu");
-      return;
-    }
-
-    if (screen === "folder") {
-      if (key.escape) setScreen("menu");
-      else if (key.upArrow) setSelected((current) => moveSelection(current, -1, folders.length));
-      else if (key.downArrow) setSelected((current) => moveSelection(current, 1, folders.length));
-      else if (key.return) {
-        const choice = folders[selected];
-        if (choice === undefined) return;
-        setCwd(path.resolve(cwd, choice));
-        setSelected(0);
-        setScreen("menu");
+        if (text === "") return;
+        draftRef.current = "";
+        setDraft("");
+        void run(text);
+        return;
       }
-      return;
+      case "cycle-agent":
+        cycleAgent();
+        return;
+      case "toggle-results":
+        setExpanded((current) => !current);
+        return;
+      case "status":
+        void openStatus();
+        return;
+      case "doctor":
+        openDoctor();
+        return;
+      case "edit":
+        if (overlay !== "none") setOverlay("none");
+        draftRef.current = action.text;
+        setDraft(action.text);
+        return;
+      case "none":
+        return;
     }
-
-    if (screen === "status" && (key.return || key.escape)) setScreen("menu");
   });
 
+  useEffect(() => {
+    return () => {
+      // Leave the terminal exactly as it was found.
+      stdout.write("\x1b[?25h");
+    };
+  }, [stdout]);
+
+  const spinnerFrames = g.border === "classic" ? ASCII_SPINNER_FRAMES : SPINNER_FRAMES;
+  const spinner = spinnerFrames[frame % spinnerFrames.length] ?? "";
+
+  const hints = running
+    ? messages.runningHints
+    : overlay !== "none"
+      ? messages.finishedHints
+      : messages.idleHints;
+
   return (
-    <Box flexDirection="column" paddingX={1} paddingY={1}>
-      {screen !== "welcome" && <Header summary={summary} />}
-      {screen === "welcome" && <Welcome summary={summary} detecting={detecting} probed={probed} />}
-      {screen === "menu" && <Menu selected={selected} cwd={cwd} />}
-      {screen === "task" && (
-        <Box flexDirection="column">
-          <Box height={1} />
-          <Text color={VIOLET}>What should the agent do?</Text>
-          <Text>
-            <Text color={CYAN}>❯ </Text>
-            {draft}
-            <Text dimColor>▏</Text>
-          </Text>
-          <Box height={1} />
-          <Text dimColor>enter runs it · esc goes back</Text>
-        </Box>
-      )}
-      {screen === "running" && <Pane lines={lines} task={task} running={running} />}
-      {screen === "folder" && (
-        <Box flexDirection="column">
-          <Box height={1} />
-          <Text color={VIOLET}>Where should the agents work?</Text>
-          <Text dimColor>{cwd}</Text>
-          <Box height={1} />
-          {folders.slice(0, 15).map((name, index) => (
-            <Text key={name} color={index === selected ? CYAN : undefined}>
-              {index === selected ? " ▸ " : "   "}
-              {name}
-            </Text>
+    <Box flexDirection="column">
+      <Static items={history}>
+        {(line, index) => <Line key={`${index}`}>{line}</Line>}
+      </Static>
+
+      {overlay !== "none" ? (
+        <Box flexDirection="column" marginTop={1}>
+          {overlayLines.map((line, index) => (
+            <Line key={`overlay-${index}`}>{line}</Line>
           ))}
-          <Box height={1} />
-          <Text dimColor>↑↓ choose · enter opens · esc goes back</Text>
+          <Box marginTop={1}>
+            <Line>{hintLine(hints)}</Line>
+          </Box>
         </Box>
-      )}
-      {screen === "status" && (
-        <Box flexDirection="column">
-          <Box height={1} />
-          <Text>{statusText}</Text>
-          <Text dimColor>[enter] back</Text>
+      ) : running && status !== undefined ? (
+        <Box flexDirection="column" marginTop={1}>
+          <Line>
+            {statusLine({
+              agent: status.agent,
+              elapsedMs: Date.now() - status.startedAt,
+              columns,
+              ...(status.tokens > 0 ? { tokens: status.tokens } : {}),
+              ...(status.stalled ? { verb: messages.stillWorkingVerb } : {}),
+              hint: `${spinner} ${messages.interruptHint}`,
+            })}
+          </Line>
+          {expanded && <Line>{hintLine([messages.collapseHint])}</Line>}
+        </Box>
+      ) : (
+        <Box flexDirection="column" marginTop={1}>
+          <Line>{headerLine({ version, cwd: initialCwd, columns })}</Line>
+          <Box
+            borderStyle={g.border === "classic" ? "classic" : "round"}
+            borderColor={draft === "" ? palette.muted : palette.primary}
+            marginY={1}
+            paddingX={1}
+          >
+            <Line>
+              {paint.accent(`${g.caret} `) +
+                (draft === "" ? paint.dim(messages.placeholder(g.ellipsis)) : draft)}
+            </Line>
+          </Box>
+          <Line>{chipsLine(chips, override)}</Line>
+          <Line>
+            {hintLine(hints) +
+              (override !== undefined
+                ? paint.dim(`  ${g.sep}  ${messages.agentOverride(override)}`)
+                : "")}
+          </Line>
+          {quitHintShown && <Line>{paint.dim(messages.confirmQuit)}</Line>}
         </Box>
       )}
     </Box>

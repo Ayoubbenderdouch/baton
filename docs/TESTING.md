@@ -82,6 +82,9 @@ Legend: ✅ verified · ⏳ pending (no machine of that OS available yet).
 | L15 | QA | Error paths return the right exit codes (2 usage · 3 exhausted · 130 cancel) | ✅ 2026-08-24 | ⏳ |
 | L16 | QA | Piping into `head` exits quietly instead of dumping an EPIPE stack | ✅ 2026-08-24 | ⏳ |
 | L17 | QA | `baton continue` resumes a **codex** thread (its own resume subcommand) | ✅ 2026-08-25 | ⏳ |
+| L18 | UI | The shell's idle/running/relay screens look right **in a real terminal** | ⏳ (snapshot-tested; no human has seen the live TTY render) | ⏳ |
+| L19 | UI | ASCII profile on a legacy Windows console (`BATON_ASCII=1`, no WT_SESSION) | ⏳ | ⏳ |
+| L20 | UI | Terminal restored after quitting the shell: cursor visible, raw mode off | ⏳ | ⏳ |
 
 Windows rows stay ⏳ until someone runs them on a real Windows machine **with logged-in
 provider CLIs** — that is the only thing CI cannot do. Everything else is covered:

@@ -98,7 +98,10 @@ CRLF checkout broke the generated-docs comparison) — all fixed in `fix(ci): re
 - [x] `--help` polish (examples + disclaimer), error remedies audit, `last-error.log`
 - [x] `baton continue` implemented — it is in the documented command surface, so it does
       not ship as a stub
-- [x] Optional: Ink interactive shell — **built after v0.1.0 was tagged**, on request.
+- [x] Optional: Ink interactive shell — **built after v0.1.0 was tagged**, on request,
+      then rebuilt to the design in docs/UX-SPEC.md (bordered input as the anchor, chips
+      under it, status line with a rotating verb and elapsed time, tool lines with nested
+      results, frozen `<Static>` history, ASCII fallback profile).
       `baton` with no task opens it: a welcome screen that lists every agent with the
       provider's own fix command, then a menu (run a task · choose folder · status · quit)
       and a live streaming pane. It **never runs a login** — it prints the command and

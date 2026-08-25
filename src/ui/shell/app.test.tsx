@@ -3,167 +3,136 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import React from "react";
 import { render } from "ink-testing-library";
+import stripAnsi from "strip-ansi";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { setGlyphProfile } from "../glyphs.js";
 import { App } from "./app.js";
 
 /**
- * The shell is rendered for real and driven by keystrokes. PATH is emptied so detection
- * finds no provider CLI: fast, offline, and it exercises the screen a first-time user
- * most needs to be right - "nothing is installed, here is what to run".
+ * The screens are rendered for real and snapshotted without colour, so the layout - the
+ * point of this overhaul - is pinned character for character.
+ *
+ * PATH is emptied and BATON_TEST_FAKE supplies the agents, so nothing here touches a
+ * provider CLI, an account or the network.
  */
 const originalPath = process.env.PATH;
 const originalHome = process.env.BATON_HOME;
 const dirs: string[] = [];
 
 beforeEach(() => {
-  const home = mkdtempSync(path.join(tmpdir(), "baton-shell-"));
+  const home = mkdtempSync(path.join(tmpdir(), "baton-ui-"));
   dirs.push(home);
   process.env.BATON_HOME = home;
   process.env.PATH = path.join(home, "empty");
+  process.env.BATON_TEST_FAKE = "1";
+  setGlyphProfile("unicode");
 });
 
 afterEach(() => {
   process.env.PATH = originalPath;
   if (originalHome === undefined) delete process.env.BATON_HOME;
   else process.env.BATON_HOME = originalHome;
+  delete process.env.BATON_TEST_FAKE;
+  setGlyphProfile("auto");
   while (dirs.length > 0) rmSync(dirs.pop() as string, { recursive: true, force: true });
 });
 
-const settle = async (): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, 250));
-};
+const settle = (ms = 300): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+const clean = (text: string): string => stripAnsi(text).replace(/[ \t]+$/gm, "");
+const lastFrame = (app: { lastFrame: () => string | undefined }): string => clean(app.lastFrame() ?? "");
+/** Everything ever drawn, including the <Static> history that scrolled away. */
+const transcript = (app: { frames: string[] }): string => clean(app.frames.join("\n"));
 
-describe("the interactive shell", () => {
-  it("greets, then lists every agent with the provider's own fix command", async () => {
-    const app = render(React.createElement(App, { initialCwd: process.cwd() }));
-    expect(app.lastFrame()).toContain("looking for your agent CLIs");
+/** Layout tests use a fixed path so the header snapshot is stable. */
+function mount(cwd = "/work/my-app"): ReturnType<typeof render> {
+  return render(React.createElement(App, { initialCwd: cwd, version: "0.1.0" }));
+}
+
+describe("idle screen", () => {
+  it("matches the target layout", async () => {
+    const app = mount();
     await settle();
-    const frame = app.lastFrame() ?? "";
-
-    expect(frame).toContain("Pass the baton, keep the context.");
-    for (const agent of ["claude", "codex", "gemini"]) expect(frame).toContain(`[${agent}]`);
-    expect(frame).toContain("not installed");
-    expect(frame).toContain("npm i -g @anthropic-ai/claude-code");
-    expect(frame).toContain("npm i -g @openai/codex");
-    expect(frame).toContain("npm i -g @google/gemini-cli");
-    expect(frame).toContain("no agent is ready");
+    expect(lastFrame(app)).toMatchSnapshot();
     app.unmount();
   });
 
-  it("never offers to log you in — only the command you run yourself", async () => {
-    const app = render(React.createElement(App, { initialCwd: process.cwd() }));
+  it("puts the header on one line, the input in a box, and the chips under it", async () => {
+    const app = mount();
     await settle();
-    const frame = (app.lastFrame() ?? "").toLowerCase();
-    expect(frame).toContain("run:");
-    // The prime rule, asserted on the screen a user actually sees.
-    expect(frame).not.toContain("log you in");
-    expect(frame).not.toContain("enter your");
-    expect(frame).not.toContain("password");
-    expect(frame).not.toContain("api key");
+    const lines = lastFrame(app).split("\n").filter((line) => line.trim() !== "");
+
+    expect(lines[0]).toMatch(/^▌ baton {2}v0\.1\.0\s+\/work\/my-app$/);
+    // The input box is the anchor of the screen, not a floating prompt.
+    expect(lines[1]?.startsWith("╭")).toBe(true);
+    expect(lines[2]).toMatch(/^│ ❯ describe a task…/);
+    expect(lines[3]?.startsWith("╰")).toBe(true);
+    // Chips directly under the input, then exactly one hint line.
+    expect(lines[4]).toBe("claude ● ready    codex ● ready    gemini ● ready");
+    expect(lines[5]).toBe("enter run · tab agent · ctrl+s status · ctrl+d doctor · esc quit");
+    expect(lines).toHaveLength(6);
     app.unmount();
   });
 
-  it("says logins are unverified until you ask, because verifying costs a request", async () => {
-    const app = render(React.createElement(App, { initialCwd: process.cwd() }));
+  it("locks an agent with tab and says so", async () => {
+    const app = mount();
     await settle();
-    expect(app.lastFrame()).toContain("costs one tiny request per agent");
-    expect(app.lastFrame()).toContain("[p]");
+    app.stdin.write("\t");
+    await settle(150);
+    expect(lastFrame(app)).toContain("agent locked to claude");
     app.unmount();
   });
 
-  it("refuses to continue while no agent can run", async () => {
-    const app = render(React.createElement(App, { initialCwd: process.cwd() }));
+  it("wants a second ctrl+c before it dies", async () => {
+    const app = mount();
     await settle();
-    app.stdin.write("\r");
-    await settle();
-    // Still on the welcome screen: there is nothing to hand a task to.
-    expect(app.lastFrame()).toContain("no agent is ready");
-    expect(app.lastFrame()).not.toContain("What do you want to do?");
+    app.stdin.write("\u0003");
+    await settle(150);
+    expect(lastFrame(app)).toContain("press ctrl+c again to quit");
     app.unmount();
   });
 
-  it("offers a way out on the first screen", async () => {
-    const app = render(React.createElement(App, { initialCwd: process.cwd() }));
+  it("types into the box", async () => {
+    const app = mount();
     await settle();
-    expect(app.lastFrame()).toContain("[q]");
-    expect(app.lastFrame()).toContain("quit");
+    for (const char of "fix the test") app.stdin.write(char);
+    await settle(150);
+    expect(lastFrame(app)).toContain("❯ fix the test");
+    expect(lastFrame(app)).not.toContain("describe a task…");
     app.unmount();
   });
 });
 
-describe("the shell with agents available (BATON_TEST_FAKE)", () => {
-  beforeEach(() => {
-    process.env.BATON_TEST_FAKE = "1";
-  });
-  afterEach(() => {
-    delete process.env.BATON_TEST_FAKE;
-  });
-
-  it("walks welcome -> menu and moves the selection with the arrow keys", async () => {
-    const app = render(React.createElement(App, { initialCwd: process.cwd() }));
+describe("ascii profile", () => {
+  it("renders the same screen with safe glyphs", async () => {
+    setGlyphProfile("ascii");
+    const app = mount();
     await settle();
-    expect(app.lastFrame()).toContain("can relay");
-
-    app.stdin.write("\r");
-    await settle();
-    const menu = app.lastFrame() ?? "";
-    expect(menu).toContain("What do you want to do?");
-    for (const label of ["Run a task", "Choose project folder", "Show status", "Quit"]) {
-      expect(menu).toContain(label);
+    const text = lastFrame(app);
+    for (const glyph of ["❯", "●", "◌", "╭", "│", "╰", "▌", "…"]) {
+      expect(text, `${glyph} survived the ascii profile`).not.toContain(glyph);
     }
-    // The first item starts selected.
-    expect(menu).toMatch(/▸ Run a task/);
-
-    app.stdin.write("\u001B[B");
-    await settle();
-    expect(app.lastFrame()).toMatch(/▸ Choose project folder/);
+    expect(text).toContain("> describe a task...");
+    expect(text).toMatchSnapshot();
     app.unmount();
   });
+});
 
-  it("opens the task field and types into it", async () => {
-    const app = render(React.createElement(App, { initialCwd: process.cwd() }));
-    await settle();
-    app.stdin.write("\r");
-    await settle();
-    app.stdin.write("\r");
-    await settle();
-    expect(app.lastFrame()).toContain("What should the agent do?");
-
-    for (const char of "fix the test") app.stdin.write(char);
-    await settle();
-    expect(app.lastFrame()).toContain("fix the test");
-    app.unmount();
-  });
-
-  it("runs a task and streams the agent's output into the pane", async () => {
-    const app = render(React.createElement(App, { initialCwd: process.cwd() }));
-    await settle();
-    app.stdin.write("\r");
-    await settle();
-    app.stdin.write("\r");
+describe("running a task", () => {
+  it("echoes the prompt, shows a status line, then a done line", async () => {
+    // A real folder: the run writes .baton/session.json and HANDOFF.md into it.
+    const app = mount(dirs[dirs.length - 1] as string);
     await settle();
     for (const char of "say ok") app.stdin.write(char);
+    await settle(150);
     app.stdin.write("\r");
-    await new Promise((resolve) => setTimeout(resolve, 2500));
+    await settle(1200);
 
-    const frame = app.lastFrame() ?? "";
-    expect(frame).toContain("say ok");
-    expect(frame).toContain("fake claude handled");
-    expect(frame).toContain("back to the menu");
-    app.unmount();
-  });
-
-  it("shows the status screen from the menu", async () => {
-    const app = render(React.createElement(App, { initialCwd: process.cwd() }));
-    await settle();
-    app.stdin.write("\r");
-    await settle();
-    app.stdin.write("\u001B[B");
-    app.stdin.write("\u001B[B");
-    await settle();
-    app.stdin.write("\r");
-    await settle();
-    expect(app.lastFrame()).toContain("BATON STATUS");
+    const everything = transcript(app);
+    expect(everything).toContain("❯ say ok");
+    expect(everything).toMatch(/▐ \[claude\]|◆ done/);
+    expect(everything).toMatch(/◆ done · \[claude\] · \d+s · 0 files changed · session saved/);
+    // The input box comes back once the agent is finished.
+    expect(lastFrame(app)).toContain("describe a task…");
     app.unmount();
   });
 });

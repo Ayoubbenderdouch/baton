@@ -137,8 +137,11 @@ interface Turn {
   end-of-life in April 2026, so requiring 22 costs no supported user anything.)
 - **execa** for child processes (see CROSS-PLATFORM.md for the Windows rules).
 - **commander** for the CLI surface.
-- **picocolors** + **ora** for rendering v1 (Ink-based interactive shell is milestone M8,
-  optional — core value ships without it).
+- **picocolors** + **string-width** for terminal output, **ink** + **react** for the
+  interactive shell (lazily imported, so `baton run` never loads React).
+  `ora` was dropped: the UI overhaul needs one shared 10fps clock for every animated
+  element rather than a spinner library with its own timer, so `src/ui/animation.ts`
+  replaced it — one dependency fewer for a security-sensitive audience.
 - **vitest** for tests. **zod** for config/schema validation.
 - Zero telemetry. Zero network calls. `package.json` name: **`baton-ai`**, bin: **`baton`**.
 
