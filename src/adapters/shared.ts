@@ -25,6 +25,21 @@ export interface ProviderSpec {
   loginCommand: string;
   /** A 1-token no-op run used only by the opt-in `baton doctor --probe`. */
   probeArgs: string[];
+  /**
+   * The provider's OWN auth commands, discovered from its installed help.
+   *
+   * Baton never handles a credential: it spawns these with inherited stdio so the user
+   * completes the provider's own flow in their own terminal. `interactive: true` means
+   * the CLI has no auth subcommand and must be opened as itself.
+   */
+  authCommands: {
+    login?: string[];
+    logout?: string[];
+    /** Set when login means "open the tool and do it inside". */
+    interactive?: boolean;
+  };
+  /** The flag this CLI takes a model name with — passed through, never interpreted. */
+  modelFlag: string;
 }
 
 /**

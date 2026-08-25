@@ -105,6 +105,21 @@ describe("idle screen", () => {
   });
 });
 
+describe("slash palette", () => {
+  it("opens on the very first slash, before any second character", async () => {
+    const app = mount();
+    await settle();
+    app.stdin.write("/");
+    await settle(150);
+    const text = lastFrame(app);
+    expect(text).toContain("❯ /");
+    // The palette itself, attached under the input.
+    expect(text).toContain("/help");
+    expect(text).toContain("/status");
+    app.unmount();
+  });
+});
+
 describe("ascii profile", () => {
   it("renders the same screen with safe glyphs", async () => {
     setGlyphProfile("ascii");

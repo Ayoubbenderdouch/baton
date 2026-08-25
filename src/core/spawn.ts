@@ -168,3 +168,37 @@ export async function killTree(
     fallbackKill();
   }
 }
+
+/**
+ * Hand the terminal to a provider's own interactive command and wait for it.
+ *
+ * Used only by `/login` and `/logout`: Baton spawns the provider's official flow with
+ * inherited stdio, sees nothing of what happens inside, and takes the terminal back when
+ * the child exits. While the child runs, Ctrl+C belongs to it — Baton ignores SIGINT so
+ * the interrupt kills the child alone and the shell survives to redraw.
+ */
+export async function spawnInteractive(
+  bin: string,
+  args: string[],
+  options: { cwd?: string } = {},
+): Promise<number> {
+  const previous = process.listeners("SIGINT") as NodeJS.SignalsListener[];
+  for (const listener of previous) process.off("SIGINT", listener);
+  const swallow = (): void => {};
+  process.on("SIGINT", swallow);
+  try {
+    const result = await execa(bin, args, {
+      cwd: options.cwd,
+      stdio: "inherit",
+      reject: false,
+      // why: an auth flow is a person typing and clicking — never time it out.
+      timeout: 0,
+    });
+    return result.exitCode ?? 1;
+  } catch {
+    return 1;
+  } finally {
+    process.off("SIGINT", swallow);
+    for (const listener of previous) process.on("SIGINT", listener);
+  }
+}

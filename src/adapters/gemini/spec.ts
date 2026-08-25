@@ -7,6 +7,10 @@ export const geminiSpec: ProviderSpec = {
   binName: "gemini",
   versionArgs: ["--version"],
   installCommand: "npm i -g @google/gemini-cli",
-  loginCommand: "gemini   (then pick your account)",
+  loginCommand: "gemini   (then sign in inside it)",
   probeArgs: ["-p", "reply with the word ok", "-o", "json"],
+  authCommands: {
+    interactive: true,
+  },
+  modelFlag: "--model",
 };

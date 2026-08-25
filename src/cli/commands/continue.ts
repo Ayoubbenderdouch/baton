@@ -1,5 +1,6 @@
 import { detectAll, getAdapter } from "../../adapters/registry.js";
 import { loadConfig } from "../../core/config.js";
+import { planContinue } from "../../core/continue-plan.js";
 import { executeTask } from "../../core/execute.js";
 import { refreshHandoff } from "../../core/handoff-refresh.js";
 import { SessionStore } from "../../core/session-store.js";
@@ -49,34 +50,23 @@ export async function continueCommand(options: ContinueCommandOptions = {}): Pro
 
   const detected = new Map<AgentId, DetectResult>();
   for (const result of await detectAll()) detected.set(result.id, result);
-  const ready = (agent: AgentId): boolean => detected.get(agent)?.verdict === "ready";
-  const cooling = (agent: AgentId): boolean =>
-    usage.cooldown(agent, config.cooldownMinutes, new Date()).cooling;
-
-  // Prefer the agent that was working on this, resuming its own session when it left one.
-  let startAgent: AgentId | undefined;
-  let resumeRef: string | undefined;
-  if (ready(last.agent) && !cooling(last.agent)) {
-    startAgent = last.agent;
-    const adapter = getAdapter(last.agent);
-    if (last.sessionRef !== undefined && adapter.buildResumeArgs !== undefined) {
-      resumeRef = last.sessionRef;
-    }
-  } else {
-    for (const candidate of config.chain) {
-      if (candidate === last.agent || !ready(candidate) || cooling(candidate)) continue;
-      startAgent = candidate;
-      break;
-    }
-  }
-
-  if (startAgent === undefined) {
-    renderer.fail(messages.noAgentAvailable, "baton status");
-    process.exitCode = EXIT.exhausted;
+  const plan = planContinue({
+    store,
+    config,
+    usage,
+    detected,
+    canResume: (agent) => getAdapter(agent).buildResumeArgs !== undefined,
+    now: new Date(),
+  });
+  if (!plan.ok) {
+    renderer.fail(
+      plan.reason === "no-task" ? messages.nothingToContinue : messages.noAgentAvailable,
+      plan.reason === "no-task" ? 'baton run "your task"' : "baton status",
+    );
+    process.exitCode = plan.reason === "no-task" ? EXIT.usage : EXIT.exhausted;
     return;
   }
-
-  const isRelay = startAgent !== last.agent || resumeRef === undefined;
+  const { startAgent, resumeRef, isRelay } = plan;
   const handoff = await refreshHandoff(cwd, store, { maxRelays: config.maxRelays });
   renderer.routerNote(
     resumeRef !== undefined

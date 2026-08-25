@@ -109,6 +109,42 @@ export const messages = {
   continueRelay: (agent: string, handoffPath: string): string =>
     `continuing with ${agent} via the handoff (${handoffPath})`,
 
+  /* ---- slash commands -------------------------------------------------- */
+
+  paletteHint: "↑↓ move · tab complete · enter run · esc close",
+  unknownCommand: (name: string): string => `unknown command /${name} · try /help`,
+  pickProvider: "pick a provider:",
+  pickerHint: "(↑↓ enter esc)",
+  commandsTitle: "COMMANDS",
+  signedInNow: (agent: string): string => `${agent} signed in`,
+  signedOutNow: (agent: string): string => `${agent} signed out`,
+  authFailed: (agent: string, what: string): string => `${agent}: ${what}`,
+  authInteractiveNote: (tool: string): string =>
+    `complete the sign-in inside ${tool}, then exit to return to baton`,
+  noAuthCommand: (agent: string): string =>
+    `${agent} has no logout command of its own — sign out inside the tool`,
+  transcriptCleared: "transcript cleared (the session on disk is untouched)",
+  overrideCleared: "router picks the agent again",
+  chainSet: (chain: string): string => `chain set to ${chain}`,
+  roleSet: (role: string, agent: string): string => `role ${role} → ${agent} for the next run`,
+  roleUnknown: (role: string, known: string): string =>
+    `unknown role "${role}" — known roles: ${known}`,
+  permissionsNow: (level: string): string => `permissionLevel is ${level}`,
+  permissionsSet: (level: string): string => `permissionLevel set to ${level}`,
+  permissionsUnsafe:
+    "unsafe is a flag, not a setting — run `baton run --unsafe \"task\"` when you mean it",
+  permissionsUsage: "usage: /permissions [safe|auto]",
+  modelNow: (agent: string, model: string): string => `${agent} model override: ${model}`,
+  modelNone: (agent: string): string => `${agent} has no model override — the provider decides`,
+  modelSet: (agent: string, model: string, flag: string): string =>
+    `${agent} model set to ${model} — passed through as ${flag}; the provider checks it on the next run`,
+  modelCleared: (agent: string): string => `${agent} model override removed`,
+  modelPrompt: (agent: string): string => `model name for ${agent} (empty to cancel):`,
+  chainUsage: "usage: /chain claude,codex,gemini",
+  agentUsage: "usage: /agent <claude|codex|gemini|auto>",
+  roleUsage: "usage: /role <name>",
+  initDone: (file: string): string => `wrote ${file}`,
+
   /* ---- interactive shell ---------------------------------------------- */
 
   /**

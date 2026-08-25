@@ -11,6 +11,11 @@ export const claudeSpec: ProviderSpec = {
   binName: "claude",
   versionArgs: ["--version"],
   installCommand: "npm i -g @anthropic-ai/claude-code",
-  loginCommand: "claude   (then /login)",
+  loginCommand: "claude auth login",
   probeArgs: ["-p", "reply with the word ok", "--output-format", "json"],
+  authCommands: {
+    login: ["auth", "login"],
+    logout: ["auth", "logout"],
+  },
+  modelFlag: "--model",
 };

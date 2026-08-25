@@ -183,15 +183,31 @@ is echoed back and must be skipped), `tool_use` (`tool_name`, `parameters`),
 ## Shared adapter rules
 
 1. **Spawn via execa with an args array** — never a shell string (see CROSS-PLATFORM.md).
-2. **Auth probe in `detect()`:** run the cheapest possible invocation (e.g. `--version`,
+2. **Auth commands (verified 2026-08-25, used by `/login` and `/logout`):**
+
+   | Provider | login | logout |
+   |---|---|---|
+   | claude 2.1.243 | `claude auth login` | `claude auth logout` (also `claude auth status`) |
+   | codex 0.147.0 | `codex login` | `codex logout` |
+   | gemini 0.56.0 | *no auth subcommand* — open `gemini` itself and sign in inside | — |
+
+   This corrects the earlier note that Claude Code has no login subcommand: `claude auth`
+   exists and carries `login`, `logout` and `status`. Baton **spawns these and nothing
+   else** — args array, resolved binary, inherited stdio, so the provider owns the whole
+   flow and Baton never sees a credential.
+
+   **Model flags:** `claude --model`, `codex -m/--model`, `gemini -m/--model`. Baton never
+   ships a list of model names — it passes a string through and lets the provider judge it.
+
+3. **Auth probe in `detect()`:** run the cheapest possible invocation (e.g. `--version`,
    then a 1-token no-op prompt only if needed) with a short timeout; classify
    `not_installed` (ENOENT) vs `auth` (login-related stderr) vs `ok`. Never attempt to
    fix auth — print the provider's own login command as the remedy.
-3. **Timeout + heartbeat:** config `runTimeoutMs` (default 20 min). If no event for
+4. **Timeout + heartbeat:** config `runTimeoutMs` (default 20 min). If no event for
    `stallMs` (default 120s), surface a "still working…" note; never silently hang.
-4. **Every parser is fixture-driven:** for each provider keep
+5. **Every parser is fixture-driven:** for each provider keep
    `fixtures/<id>/ok-stream.jsonl`, `ok-final.json`, `limit.txt`, `auth-error.txt`,
    `crash.txt` captured from real runs, and unit-test the mapping (see TESTING.md).
-5. **Model selection is the provider's business.** Baton does not pass model flags in v1
+6. **Model selection is the provider's business.** Baton does not pass model flags in v1
    except via passthrough config (`agents.<id>.extraArgs: string[]`) so power users can
    pin models without Baton hardcoding names that go stale.
