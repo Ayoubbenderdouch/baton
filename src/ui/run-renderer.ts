@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentId } from "../core/types.js";
+import type { RelayInfo, TaskRenderer } from "./task-renderer.js";
 import { messages } from "./messages.js";
 import { startSpinner, type Spinner } from "./spinner.js";
 import { badge, isTTY, theme } from "./theme.js";
@@ -8,13 +9,6 @@ export interface RendererOptions {
   verbose?: boolean;
   /** No output for this long -> say so instead of looking frozen. */
   stallMs?: number;
-}
-
-export interface RelayInfo {
-  from: AgentId;
-  to: AgentId;
-  resetHint?: string;
-  handoffPath: string;
 }
 
 const BAR = "│";
@@ -32,7 +26,7 @@ function clip(text: string, max = 100): string {
  * The run view (docs/UX-SPEC.md). Two paths, same information: a live TTY view with a
  * spinner, and plain `baton:` lines everywhere else (pipes, CI, --quiet).
  */
-export class RunRenderer {
+export class RunRenderer implements TaskRenderer {
   private readonly plain: boolean;
   private readonly verbose: boolean;
   private readonly stallMs: number;

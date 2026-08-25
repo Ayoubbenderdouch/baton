@@ -5,7 +5,7 @@ import { runTurn, type TurnOutcome } from "./orchestrator.js";
 import type { SessionStore } from "./session-store.js";
 import type { AgentAdapter, AgentId, DetectResult, PermissionLevel } from "./types.js";
 import type { UsageStore } from "./usage-store.js";
-import type { RunRenderer } from "../ui/run-renderer.js";
+import type { TaskRenderer } from "../ui/task-renderer.js";
 
 export interface TaskConfig {
   chain: AgentId[];
@@ -21,7 +21,7 @@ export interface TaskConfig {
 
 export interface TaskDeps {
   cwd: string;
-  renderer: RunRenderer;
+  renderer: TaskRenderer;
   store: SessionStore;
   usage: UsageStore;
   getAdapter: (id: AgentId) => AgentAdapter;

@@ -66,8 +66,23 @@ Never dump a stack trace at users unless `--verbose`; log full detail to
 Table: agent · installed? (version) · auth probe · verdict, then a summary line
 "2/3 ready — baton can relay between claude and gemini." Exit 0 if ≥1 ready.
 
-## Interactive shell (M8, optional)
+## Interactive shell (M8) — built
 
-`baton` with no args opens an Ink-based REPL styled with the same palette: prompt line,
-streaming pane, status bar with per-agent availability dots. Ship only after M0–M7 are
-green on both OSes; the CLI-first UX above is the product, the shell is dessert.
+`baton` with no args opens an Ink-based shell styled with the same palette: status bar
+with per-agent availability dots, streaming pane, prompt line. Screens:
+
+1. **Welcome** — every agent with a dot, its version, and for anything unusable the
+   provider's own command (`codex login`, `npm i -g …`). `[p]` verifies logins (one tiny
+   request per agent, never silently), `[r]` re-checks, `[enter]` continues once at least
+   one agent can run.
+2. **Menu** — run a task · choose project folder · show status · quit.
+3. **Task** — a prompt line, then the live pane with the same lines the terminal renderer
+   prints, including the relay announcement.
+
+**The shell never performs authentication.** It prints the provider's command and
+re-checks; it never asks for a credential and never launches a login flow. That keeps
+ARCHITECTURE.md's non-goal ("no wrapping of provider auth flows") intact, and it is
+asserted by a test that renders the screen and fails if the words "password", "api key"
+or "log you in" ever appear on it.
+
+Non-TTY (a pipe, CI) never opens the shell — `baton` falls back to the usage message.

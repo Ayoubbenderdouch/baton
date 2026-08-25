@@ -98,8 +98,12 @@ CRLF checkout broke the generated-docs comparison) — all fixed in `fix(ci): re
 - [x] `--help` polish (examples + disclaimer), error remedies audit, `last-error.log`
 - [x] `baton continue` implemented — it is in the documented command surface, so it does
       not ship as a stub
-- [ ] Optional: Ink interactive shell — **deliberately skipped**, exactly as this file
-      allows. The CLI is the product; the shell would have delayed the release.
+- [x] Optional: Ink interactive shell — **built after v0.1.0 was tagged**, on request.
+      `baton` with no task opens it: a welcome screen that lists every agent with the
+      provider's own fix command, then a menu (run a task · choose folder · status · quit)
+      and a live streaming pane. It **never runs a login** — it prints the command and
+      re-checks on `r`, keeping the credential promise literally true. Ink and React load
+      lazily, so `baton run "task"` still pays nothing for them.
 - [x] `npm publish --dry-run` clean (5 files: dist, README, LICENSE, CHANGELOG,
       package.json); CHANGELOG.md written in user language; v0.1.0 tag prepared locally
       (publishing stays manual, the maintainer's call)

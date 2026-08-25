@@ -70,6 +70,13 @@ export function buildProgram(): Command {
     .option("--quiet", "plain output, no spinner")
     .option("--verbose", "echo raw provider events")
     .action(async (taskWords: string[], options: RunCommandOptions) => {
+      // `baton` with nothing to do opens the interactive shell instead of scolding the
+      // user about a missing task (docs/UX-SPEC.md M8).
+      if (taskWords.length === 0 && options.agent === undefined && options.role === undefined) {
+        const { startShell } = await import("../ui/shell/index.js");
+        const shell = await startShell();
+        if (shell.started) return;
+      }
       await runCommand(taskWords, options);
     });
 

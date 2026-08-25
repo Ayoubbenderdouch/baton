@@ -74,6 +74,24 @@ baton continue                                  # pick it up tomorrow morning
 baton status                                    # usage and cooldowns across all three
 ```
 
+Or just type `baton` with nothing after it. That opens the interactive shell: it shows
+which agents you have, which still need a login (with the provider's own command — Baton
+never runs a login for you), and then a menu to start a task, switch project folder or
+look at your usage.
+
+```
+  Baton — Pass the baton, keep the context.
+
+  ● [claude]   signed in · 2.1.243
+  ○ [codex]    not signed in
+               → run: codex login
+  ● [gemini]   signed in · 0.56.0
+
+  2 of 3 ready — baton can relay between them
+
+  [enter] continue · [p] verify logins · [r] re-check · [q] quit
+```
+
 ## Baton never touches your credentials
 
 This is the whole design, not a footnote:
@@ -140,6 +158,7 @@ baton config set rules '[{"match":{"keywordsAny":["لخص","اشرح"]},"agent":
 
 | Command | What it does |
 |---|---|
+| `baton` | the interactive shell: agent overview, menu, live pane |
 | `baton run "task"` | route the task, stream the agent, relay on a limit (alias: `baton "task"`) |
 | `baton continue` | resume the last task — same agent's own session, or the next agent with the handoff |
 | `baton status` | per-agent runs, tokens and cooldowns · `--json` · `--deep` · `--reset` |

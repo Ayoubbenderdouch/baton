@@ -1,12 +1,12 @@
 import type { TaskResult } from "../../core/failover.js";
 import type { AgentId } from "../../core/types.js";
 import { messages } from "../../ui/messages.js";
-import type { RunRenderer } from "../../ui/run-renderer.js";
+import type { TaskRenderer } from "../../ui/task-renderer.js";
 import { EXIT } from "../exit-codes.js";
 
 /** One place turns a TaskResult into what the user sees and the exit code they get. */
 export function finishRun(
-  renderer: RunRenderer,
+  renderer: TaskRenderer,
   result: TaskResult,
   startAgent: AgentId,
 ): void {

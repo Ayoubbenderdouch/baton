@@ -1,8 +1,7 @@
 import { detectAll, getAdapter } from "../../adapters/registry.js";
 import { loadConfig } from "../../core/config.js";
-import { runTask, type TaskConfig } from "../../core/failover.js";
+import { executeTask } from "../../core/execute.js";
 import { refreshHandoff } from "../../core/handoff-refresh.js";
-import { primePatterns } from "../../core/limit-detector.js";
 import { SessionStore } from "../../core/session-store.js";
 import type { AgentId, DetectResult } from "../../core/types.js";
 import { UsageStore } from "../../core/usage-store.js";
@@ -40,7 +39,6 @@ export async function continueCommand(options: ContinueCommandOptions = {}): Pro
     return;
   }
 
-  await primePatterns();
   const { config, warnings } = await loadConfig(cwd, {
     ...(options.auto === true ? { permissionLevel: "auto" as const } : {}),
   });
@@ -51,9 +49,6 @@ export async function continueCommand(options: ContinueCommandOptions = {}): Pro
 
   const detected = new Map<AgentId, DetectResult>();
   for (const result of await detectAll()) detected.set(result.id, result);
-  const detect = async (id: AgentId): Promise<DetectResult> =>
-    detected.get(id) ?? getAdapter(id).detect();
-
   const ready = (agent: AgentId): boolean => detected.get(agent)?.verdict === "ready";
   const cooling = (agent: AgentId): boolean =>
     usage.cooldown(agent, config.cooldownMinutes, new Date()).cooling;
@@ -89,36 +84,29 @@ export async function continueCommand(options: ContinueCommandOptions = {}): Pro
       : messages.continueRelay(startAgent, handoff.rootPath),
   );
 
-  const taskConfig: TaskConfig = {
-    chain: config.chain,
-    maxRelays: config.maxRelays,
-    cooldownMinutes: config.cooldownMinutes,
-    permissionLevel: config.permissionLevel,
-    relayOnError: config.relayOnError,
-    timeoutMs: config.runTimeoutMs,
-    extraArgs: Object.fromEntries(
-      Object.entries(config.agents).map(([agent, value]) => [agent, value?.extraArgs ?? []]),
-    ),
-    ...(options.unsafe !== undefined ? { unsafe: options.unsafe } : {}),
-    ...(options.verbose !== undefined ? { verbose: options.verbose } : {}),
-  };
 
   const controller = new AbortController();
   const onSigint = (): void => controller.abort();
   process.once("SIGINT", onSigint);
   try {
-    const result = await runTask(
-      task,
-      startAgent,
-      { cwd, renderer, store, usage, getAdapter, detect, now: () => new Date(), signal: controller.signal },
-      taskConfig,
-      {
+    const outcome = await executeTask(task, cwd, renderer, {
+      signal: controller.signal,
+      agent: startAgent,
+      ...(options.auto !== undefined ? { auto: options.auto } : {}),
+      ...(options.unsafe !== undefined ? { unsafe: options.unsafe } : {}),
+      ...(options.verbose !== undefined ? { verbose: options.verbose } : {}),
+      start: {
         prompt: messages.continuePrompt,
         ...(resumeRef !== undefined ? { sessionRef: resumeRef } : {}),
         relay: isRelay,
       },
-    );
-    finishRun(renderer, result, startAgent);
+    });
+    if (outcome.kind === "blocked") {
+      renderer.fail(outcome.reason, outcome.remedy);
+      process.exitCode = outcome.usage ? EXIT.usage : EXIT.exhausted;
+      return;
+    }
+    finishRun(renderer, outcome.result, outcome.startAgent);
   } finally {
     process.removeListener("SIGINT", onSigint);
     renderer.stop();

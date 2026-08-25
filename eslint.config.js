@@ -48,7 +48,7 @@ export default tseslint.config(
     rules: { "no-restricted-properties": "off" },
   },
   {
-    files: ["**/*.test.ts", "scripts/**/*.mjs", "src/test-utils/**/*.ts"],
+    files: ["**/*.test.ts", "**/*.test.tsx", "scripts/**/*.mjs", "src/test-utils/**/*.ts"],
     rules: { "no-restricted-syntax": "off" },
   },
   {

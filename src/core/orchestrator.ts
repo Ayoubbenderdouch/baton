@@ -1,5 +1,5 @@
 import type { AgentAdapter, AgentId, PermissionLevel } from "./types.js";
-import type { RunRenderer } from "../ui/run-renderer.js";
+import type { TaskRenderer } from "../ui/task-renderer.js";
 import { changedBetween, gitState } from "./git.js";
 
 export interface TurnOutcome {
@@ -19,7 +19,7 @@ export interface TurnOptions {
   prompt: string;
   cwd: string;
   permissionLevel: PermissionLevel;
-  renderer: RunRenderer;
+  renderer: TaskRenderer;
   unsafe?: boolean;
   extraArgs?: string[];
   timeoutMs?: number;
